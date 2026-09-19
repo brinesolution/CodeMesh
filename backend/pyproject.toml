@@ -1,0 +1,38 @@
+[project]
+name = "codemesh-backend"
+version = "0.1.0"
+description = "Local-first multi-model AI assistant backend"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.34,<1.0",
+  "pydantic>=2.10,<3.0",
+  "pydantic-settings>=2.7,<3.0",
+  "httpx>=0.28,<1.0",
+  "sqlalchemy>=2.0,<3.0",
+  "psutil>=6.1,<7.0",
+  "pynvml>=12.0,<13.0",
+  "sympy>=1.13,<2.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<9.0",
+  "pytest-asyncio>=0.25,<1.0",
+  "ruff>=0.9,<1.0",
+  "mypy>=1.14,<2.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = '-m "not live"'
+markers = ["live: requires a running Ollama service and all configured models"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
