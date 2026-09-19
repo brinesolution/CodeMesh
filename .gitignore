@@ -16,5 +16,7 @@ evaluation/reports/*.json
 .idea/
 .vscode/
 screenshots/
+.playwright-cli/
+output/playwright/
 .codemesh-processes.json
 *-pull.log
