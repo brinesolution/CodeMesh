@@ -28,7 +28,10 @@ export function RoutingTrace({ route, validation, modelSwitchLatency, generation
             <div className="route-detail">Expert model<strong>{route.expert_model_label}</strong></div>
             <div className="route-detail">Model switch<strong>{modelSwitchLatency == null ? "—" : `${Math.round(modelSwitchLatency)} ms`}</strong></div>
             <div className="route-detail">Generation<strong>{generationLatency == null ? "Not recorded" : `${Math.round(generationLatency)} ms`}</strong></div>
+            <div className="route-detail">Context<strong>{route.context_latency_ms == null ? "Not recorded" : `${Math.round(route.context_latency_ms)} ms${route.context_fallback ? " · fallback" : ""}`}</strong></div>
+            <div className="route-detail">History<strong>{route.requires_history ? `${route.recent_turns_needed ?? 0} recent turns${route.requires_summary ? " + summary" : ""}` : "Not needed"}</strong></div>
           </div>
+          <div className="route-detail">Topic<strong>{route.topic ?? "Not identified"}</strong></div>
           <div className="route-detail">Reason<strong>{route.reason}</strong></div>
           {validation && <div className="route-detail">Validation<strong>{validation.status === "valid" ? validation.detail : validation.status.replaceAll("_", " ")}</strong></div>}
         </div>

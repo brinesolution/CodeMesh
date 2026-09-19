@@ -23,9 +23,23 @@ def get_session(session_id: str, request: Request):
     return session
 
 
+@router.get("/sessions/{session_id}/context")
+def get_session_context(session_id: str, request: Request) -> dict[str, object]:
+    context = request.app.state.context_memory.context_view(session_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return context
+
+
+@router.post("/sessions/{session_id}/context/rebuild")
+async def rebuild_session_context(session_id: str, request: Request) -> dict[str, object]:
+    if request.app.state.repository.get_session(session_id) is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return await request.app.state.orchestrator.rebuild_context(session_id)
+
+
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: str, request: Request):
     if not request.app.state.repository.delete_session(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
     return {"deleted": True}
-

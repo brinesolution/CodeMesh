@@ -41,6 +41,14 @@ export interface RouteData {
   expert_model: string;
   expert_model_label: string;
   session_id?: string;
+  topic?: string | null;
+  context_router_model?: string | null;
+  context_latency_ms?: number | null;
+  context_fallback?: boolean;
+  requires_history?: boolean;
+  requires_summary?: boolean;
+  reference_detected?: boolean;
+  recent_turns_needed?: number;
 }
 
 export interface ValidationData {
@@ -54,6 +62,10 @@ export interface MetricsData {
   model_switch_latency_ms: number | null;
   generation_latency_ms: number | null;
   total_latency_ms: number | null;
+  specialist_generation_latency_ms?: number | null;
+  routing_context_latency_ms?: number | null;
+  memory_update_latency_ms?: number | null;
+  summary_update_latency_ms?: number | null;
   model: string;
   telemetry?: SystemSnapshot;
 }
@@ -93,4 +105,35 @@ export interface ModelConfiguration {
   assignments: Record<ModelRole, string>;
   defaults: Record<ModelRole, string>;
   active_model: string | null;
+}
+
+export interface MemoryItem {
+  id: string;
+  text: string;
+  source_message_id: number | null;
+  updated_at: string;
+  topic: string | null;
+}
+
+export interface StructuredMemory {
+  facts: MemoryItem[];
+  decisions: MemoryItem[];
+  constraints: MemoryItem[];
+  preferences: MemoryItem[];
+  current_goal: string | null;
+  open_tasks: MemoryItem[];
+  topics: string[];
+}
+
+export interface SessionContext {
+  summary: string;
+  memory: StructuredMemory;
+  recent_context_turns: number;
+  summary_through_message_id: number | null;
+  current_topic: string | null;
+  last_updated: string | null;
+  version: number;
+  router_model: string | null;
+  last_memory_model: string | null;
+  last_summary_model: string | null;
 }

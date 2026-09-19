@@ -3,7 +3,7 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from app.persistence.database import build_engine, build_session_factory
-from app.persistence.tables import Base, ChatMessage, ChatSession, utcnow
+from app.persistence.tables import Base, ChatMessage, ChatSession, SessionContext, utcnow
 
 
 class ChatRepository:
@@ -15,6 +15,7 @@ class ChatRepository:
     def create_session(self, preferred_mode: str = "auto") -> ChatSession:
         with self.session_factory() as db:
             item = ChatSession(id=str(uuid4()), preferred_mode=preferred_mode)
+            item.context = SessionContext(session_id=item.id)
             db.add(item)
             db.commit()
             db.refresh(item)
@@ -63,3 +64,41 @@ class ChatRepository:
                 .limit(limit)
             )
             return list(reversed(list(db.scalars(query))))
+
+    def all_messages(self, session_id: str) -> list[ChatMessage]:
+        with self.session_factory() as db:
+            query = (
+                select(ChatMessage)
+                .where(ChatMessage.session_id == session_id)
+                .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
+            )
+            return list(db.scalars(query))
+
+    def get_session_context(self, session_id: str) -> SessionContext | None:
+        with self.session_factory() as db:
+            session = db.get(ChatSession, session_id)
+            if session is None:
+                return None
+            context = db.get(SessionContext, session_id)
+            if context is None:
+                context = SessionContext(session_id=session_id)
+                db.add(context)
+                db.commit()
+                db.refresh(context)
+            return context
+
+    def save_session_context(self, session_id: str, **fields) -> SessionContext | None:
+        with self.session_factory() as db:
+            session = db.get(ChatSession, session_id)
+            if session is None:
+                return None
+            context = db.get(SessionContext, session_id)
+            if context is None:
+                context = SessionContext(session_id=session_id)
+                db.add(context)
+            for key, value in fields.items():
+                setattr(context, key, value)
+            context.updated_at = utcnow()
+            db.commit()
+            db.refresh(context)
+            return context

@@ -23,6 +23,9 @@ class ChatSession(Base):
     messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", order_by="ChatMessage.created_at"
     )
+    context: Mapped["SessionContext | None"] = relationship(
+        back_populates="session", cascade="all, delete-orphan", uselist=False, single_parent=True
+    )
 
 
 class ChatMessage(Base):
@@ -42,3 +45,21 @@ class ChatMessage(Base):
     generation_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     validation_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     session: Mapped[ChatSession] = relationship(back_populates="messages")
+
+
+class SessionContext(Base):
+    __tablename__ = "session_context"
+
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), primary_key=True
+    )
+    summary: Mapped[str] = mapped_column(Text, default="")
+    summary_through_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    memory_json: Mapped[str] = mapped_column(Text, default="{}")
+    current_topic: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    last_router_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_memory_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_summary_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    session: Mapped[ChatSession] = relationship(back_populates="context")

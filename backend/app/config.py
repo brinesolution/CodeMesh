@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     stem_model: str = "qwen3:1.7b"
     code_model: str = "qwen2.5-coder:3b"
     context_turns: int = Field(default=6, ge=1, le=12)
+    summary_trigger_turns: int = Field(default=8, ge=2, le=100)
+    summary_max_chars: int = Field(default=8000, ge=1000, le=20000)
+    memory_max_facts: int = Field(default=24, ge=1, le=100)
+    memory_max_decisions: int = Field(default=20, ge=1, le=100)
+    memory_max_constraints: int = Field(default=20, ge=1, le=100)
+    memory_max_preferences: int = Field(default=16, ge=1, le=100)
+    memory_max_open_tasks: int = Field(default=16, ge=1, le=100)
+    memory_max_topics: int = Field(default=16, ge=1, le=100)
     database_url: str = "sqlite:///./data/codemesh.db"
     demo_mode: bool = False
     log_level: str = "INFO"
@@ -35,4 +43,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

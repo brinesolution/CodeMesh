@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, streamChat } from "./api/client";
-import type { ChatMessage, MetricsData, Mode, ModelConfiguration, ModelRole, RouteData, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
+import type { ChatMessage, MetricsData, Mode, ModelConfiguration, ModelRole, RouteData, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
 import { Sidebar } from "./components/app-shell/Sidebar";
 import { Header } from "./components/app-shell/Header";
 import { ChatView } from "./components/chat/ChatView";
@@ -35,6 +35,9 @@ export default function App() {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [savingModelRole, setSavingModelRole] = useState<ModelRole | null>(null);
   const [resettingModels, setResettingModels] = useState(false);
+  const [sessionContext, setSessionContext] = useState<SessionContext | null>(null);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
   const [route, setRoute] = useState<RouteData | undefined>();
   const [validation, setValidation] = useState<ValidationData | undefined>();
   const [metrics, setMetrics] = useState<MetricsData | undefined>();
@@ -105,6 +108,30 @@ export default function App() {
     setRoute((current) => current && current.mode === "auto" && !current.router_model ? { ...current, router_model: routerModel } : current);
   }, [modelConfiguration]);
 
+  const refreshContext = useCallback(async (requestedSessionId: string | null = activeSessionId) => {
+    if (!requestedSessionId) {
+      setSessionContext(null);
+      setContextError(null);
+      return null;
+    }
+    setContextLoading(true);
+    setContextError(null);
+    try {
+      const context = await api.getSessionContext(requestedSessionId);
+      if (requestedSessionId === activeSessionId) setSessionContext(context);
+      return context;
+    } catch (caught) {
+      if (requestedSessionId === activeSessionId) setContextError(caught instanceof Error ? caught.message : "The shared context could not be loaded.");
+      return null;
+    } finally {
+      setContextLoading(false);
+    }
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (telemetryOpen) void refreshContext(activeSessionId);
+  }, [activeSessionId, refreshContext, telemetryOpen]);
+
   const assignModel = useCallback(async (role: ModelRole, model: string) => {
     setSavingModelRole(role);
     setModelError(null);
@@ -136,7 +163,7 @@ export default function App() {
     } catch { setError("That conversation could not be loaded."); }
   };
 
-  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setMessages([]); setInput(""); setMode("auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); };
+  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setSessionContext(null); setMessages([]); setInput(""); setMode("auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); };
 
   const deleteSession = async (id: string) => {
     try { await api.deleteSession(id); const remaining = await refreshSessions(); if (id === activeSessionId) { if (remaining[0]) await selectSession(remaining[0].id); else newChat(); } } catch { setError("The conversation could not be deleted."); }
@@ -180,6 +207,6 @@ export default function App() {
     <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} />
     {sidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
     <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} routerModel={modelConfiguration?.assignments.router ?? null} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
-    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} onClose={() => setTelemetryOpen(false)} />
+    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} sessionId={activeSessionId} sessionContext={sessionContext} contextError={contextError} contextLoading={contextLoading} onRefreshContext={() => void refreshContext()} onClose={() => setTelemetryOpen(false)} />
   </div>;
 }

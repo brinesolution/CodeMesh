@@ -23,6 +23,14 @@ class RouteResult(RouteDecision):
     latency_ms: float | None = None
     routing_fallback: bool = False
     low_confidence: bool = False
+    topic: str | None = None
+    context_router_model: str | None = None
+    context_latency_ms: float | None = None
+    context_fallback: bool = False
+    requires_history: bool = False
+    requires_summary: bool = False
+    reference_detected: bool = False
+    recent_turns_needed: int = 0
 
 
 def _clean_router_text(text: str) -> str:
