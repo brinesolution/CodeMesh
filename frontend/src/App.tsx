@@ -123,8 +123,9 @@ export default function App() {
   const promptCard = (prompt: string, promptMode: Mode) => { setMode(promptMode); void sendMessage(prompt, promptMode); };
 
   return <div className="app-shell">
-    <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} />
-    <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
+    <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} />
+    {sidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
+    <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
     <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} onClose={() => setTelemetryOpen(false)} />
   </div>;
 }

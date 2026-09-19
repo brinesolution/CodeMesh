@@ -28,7 +28,7 @@ try {
         throw "The live chat response did not render."
     }
 
-    Invoke-PlaywrightCli @("click", 'button[aria-label="Open system telemetry"]') | Out-Null
+    Invoke-PlaywrightCli @("click", 'header.topbar button[aria-label="Open system telemetry"]') | Out-Null
     $telemetry = Invoke-PlaywrightCli @("snapshot")
     if ($telemetry -notmatch "System telemetry" -or $telemetry -notmatch "NVIDIA") {
         throw "The telemetry drawer did not expose live runtime data."

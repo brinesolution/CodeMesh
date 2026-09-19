@@ -3,3 +3,4 @@
 - 2026-09-19: Ollama lifecycle unloads the previous specialist on route switches while keeping the router warm via keep-alive.
 - 2026-09-20: The measured 0.6B router scored 69.17% raw on the 120-case set, so a deterministic domain guardrail corrects explicit router disagreements; the final measured score is 98.33% without changing the required model.
 - 2026-09-20: Model pulls retry resumable Ollama downloads three times because the local registry transfer intermittently returned DNS/TLS failures.
+- 2026-09-20: The React shell uses explicit fixed-height flex regions: sidebar history and main messages own the only scrollbars, while the sidebar footer, main header, and composer remain non-scrolling; guarded follow-to-bottom plus jump-to-latest preserves manual upward reading.
