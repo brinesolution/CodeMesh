@@ -350,6 +350,32 @@ def test_empty_router_updates_replace_current_gravity_and_goal(tmp_path) -> None
     }
 
 
+def test_empty_router_update_extracts_offline_readability_constraints(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'offline-constraints.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+
+    state = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "The implementation must be fully offline. It must not use external APIs "
+            "or third-party math libraries. Keep it readable for a first-year "
+            "programming student."
+        ),
+    )
+
+    assert {item.id for item in state.memory.constraints} == {
+        "offline",
+        "no-external-apis",
+        "no-third-party-math",
+        "first-year-readable",
+    }
+
+
 def test_unrelated_router_goal_does_not_replace_durable_project_goal(tmp_path) -> None:
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'goal-isolation.db'}")
     repository = ChatRepository(settings)

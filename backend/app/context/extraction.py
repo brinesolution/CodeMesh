@@ -129,7 +129,7 @@ def extract_durable_memory(
                 topic="Projectile Motion Calculator",
             )
         )
-    if re.search(r"no\s+(?:external\s+)?apis?", lowered):
+    if re.search(r"(?:no|without|must\s+not\s+use)\s+(?:any\s+)?(?:external\s+)?apis?", lowered):
         changes.append(
             MemoryChange(
                 category="constraints",
@@ -138,7 +138,15 @@ def extract_durable_memory(
                 topic="Projectile Motion Calculator",
             )
         )
-    if "no third-party math librar" in lowered:
+    if (
+        "no third-party math librar" in lowered
+        or "must not use third-party math librar" in lowered
+        or "without third-party math librar" in lowered
+        or (
+            "third-party math librar" in lowered
+            and any(marker in lowered for marker in ("not use", "do not use", "without"))
+        )
+    ):
         changes.append(
             MemoryChange(
                 category="constraints",
@@ -147,7 +155,7 @@ def extract_durable_memory(
                 topic="Projectile Motion Calculator",
             )
         )
-    if "first-year engineering student" in lowered:
+    if "first-year engineering student" in lowered or "first-year programming student" in lowered:
         changes.append(
             MemoryChange(
                 category="constraints",
