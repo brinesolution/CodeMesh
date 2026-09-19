@@ -1,7 +1,7 @@
 # Status
 
 Current phase: 10/10 local v1 complete; Docker/AWS deployment intentionally not started.
-Last verified code commit: pending feature commit
+Last verified code commit: 96bd881
 
 Working: FastAPI/Ollama gateway, exact four-model routing, runtime model assignments, SQLite sessions, streaming, validation, telemetry, fixed ChatGPT-like React shell, and KaTeX math rendering.
 Verified: 20 fast backend tests, 5 live-model tests, frontend typecheck/build/10 tests, 6/6 classroom prompts, browser smoke, dynamic Models panel with live Ollama catalog and restore-defaults flow, Auto new-chat default, restored routing telemetry, offline loopback acceptance, and fixed-shell checks at 1920x1080, 1366x768, 1024x768, and 390x844 with zero console errors.
