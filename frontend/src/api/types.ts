@@ -67,7 +67,34 @@ export interface MetricsData {
   memory_update_latency_ms?: number | null;
   summary_update_latency_ms?: number | null;
   model: string;
+  context?: ContextGenerationMetadata;
   telemetry?: SystemSnapshot;
+}
+
+export interface ContextGenerationMetadata {
+  session_id: string;
+  mode: Mode;
+  expert: "conversation" | "stem" | "coding";
+  router_model: string | null;
+  specialist_model: string;
+  recent_message_count: number;
+  recent_message_roles: string[];
+  summary_included: boolean;
+  structured_memory_included: boolean;
+  memory_item_count: number;
+  context_analysis: {
+    topic: string | null;
+    requires_history: boolean;
+    requires_summary: boolean;
+    reference_detected: boolean;
+    recent_turns_needed: number;
+  };
+  route_confidence: number | null;
+  context_analysis_latency_ms: number;
+  memory_update_status: string;
+  summary_update_status: string;
+  memory_model: string | null;
+  summary_model: string | null;
 }
 
 export interface SystemSnapshot {

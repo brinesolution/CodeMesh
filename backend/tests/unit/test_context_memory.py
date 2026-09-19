@@ -226,3 +226,125 @@ def test_specialist_context_includes_selected_memory_once_and_current_request_on
     assert sum(content == "Now implement it." for content in contents) == 1
     assert any("Use Java." in content for content in contents)
     assert all("Now implement it." not in content for content in contents[1:-1])
+
+
+def test_substantive_message_is_retained_when_router_returns_empty_update(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'router-empty.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+    service.record_analysis(
+        session_id,
+        ContextAnalysis(topic="Projectile Motion Calculator"),
+        "qwen3:0.6b",
+    )
+
+    state = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "I am building a projectile-motion calculator. Use gravitational "
+            "acceleration as 9.81 m/s². The user will enter initial velocity and "
+            "launch angle. The program must calculate maximum height, horizontal "
+            "range, and total flight time."
+        ),
+    )
+
+    fact_text = " ".join(item.text.lower() for item in state.memory.facts)
+    assert "9.81" in fact_text
+    assert "initial velocity" in fact_text
+    assert "maximum height" in fact_text
+    assert state.memory.topics == ["Projectile Motion Calculator"]
+
+
+def test_empty_router_update_keeps_implementation_decisions_and_constraints(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'router-empty-code.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+    service.record_analysis(
+        session_id,
+        ContextAnalysis(topic="Projectile Motion Calculator"),
+        "qwen3:0.6b",
+    )
+
+    state = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "Now implement everything we discussed in Python. Use functions, "
+            "validate that velocity is positive and angle is between 0 and 90 "
+            "degrees, and print all results to two decimal places."
+        ),
+    )
+
+    assert [item.text for item in state.memory.decisions] == [
+        "Use Python as the implementation language.",
+        "Use functions to organize the implementation.",
+    ]
+    assert {item.text for item in state.memory.constraints} == {
+        "Initial velocity must be positive.",
+        "Launch angle must be between 0 and 90 degrees.",
+        "Format results to two decimal places.",
+    }
+    assert state.memory.current_goal == "Implement the projectile-motion calculator."
+
+
+def test_empty_router_updates_replace_current_gravity_and_goal(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'router-empty-replacements.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+    service.record_analysis(
+        session_id,
+        ContextAnalysis(topic="Projectile Motion Calculator"),
+        "qwen3:0.6b",
+    )
+
+    first = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text="Use gravitational acceleration as 9.81 m/s² for the projectile calculator.",
+    )
+    assert [item.text for item in first.memory.facts if "Gravity" in item.text] == [
+        "Gravity = 9.81 m/s²."
+    ]
+
+    changed = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=2,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "Change one requirement: use 9.80665 m/s² as gravity from now on instead of 9.81."
+        ),
+    )
+    assert [item.text for item in changed.memory.facts if "Gravity" in item.text] == [
+        "Gravity = 9.80665 m/s²."
+    ]
+
+    goal = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=3,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "Our current goal is now to add unit tests. We need tests for 0-degree input, "
+            "45 degrees, invalid negative velocity, angle above 90, and a normal 30 m/s "
+            "at 40-degree case."
+        ),
+    )
+    assert goal.memory.current_goal == "Add unit tests for the projectile-motion calculator."
+    assert {item.id for item in goal.memory.open_tasks} == {
+        "zero-degree",
+        "45-degree",
+        "negative-velocity",
+        "angle-over-90",
+        "normal-case",
+    }

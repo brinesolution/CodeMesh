@@ -173,6 +173,29 @@ class Orchestrator:
                 session_id, expert.context_char_limit, message, analysis
             )
             prompt_messages = context_package.to_messages(expert.system_prompt)
+            context_metadata = {
+                "session_id": session_id,
+                "mode": route.mode,
+                "expert": route.expert.value,
+                "router_model": context_model,
+                "specialist_model": expert_model.model,
+                "recent_message_count": len(context_package.recent_messages),
+                "recent_message_roles": [
+                    item["role"] for item in context_package.recent_messages
+                ],
+                "summary_included": bool(context_package.summary),
+                "structured_memory_included": bool(context_package.relevant_memory),
+                "memory_item_count": len(context_package.relevant_memory),
+                "context_analysis": {
+                    "topic": analysis.topic,
+                    "requires_history": analysis.requires_history,
+                    "requires_summary": analysis.requires_summary,
+                    "reference_detected": analysis.reference_detected,
+                    "recent_turns_needed": analysis.recent_turns_needed,
+                },
+                "route_confidence": route.confidence,
+                "context_analysis_latency_ms": context_latency,
+            }
             yield {"type": "status", "data": {"state": "generating"}}
             generation_timer = Stopwatch()
             parts: list[str] = []
@@ -214,6 +237,13 @@ class Orchestrator:
                 "summary_update_latency_ms": maintenance["summary_update_latency_ms"],
                 "total_latency_ms": total_timer.elapsed_ms(),
                 "model": expert_model.model,
+                "context": {
+                    **context_metadata,
+                    "memory_update_status": maintenance["memory_update_status"],
+                    "summary_update_status": maintenance["summary_update_status"],
+                    "memory_model": maintenance["memory_model"],
+                    "summary_model": maintenance["summary_model"],
+                },
                 "telemetry": system_snapshot(expert_model.model, health.reachable),
             }
             yield {"type": "metrics", "data": metrics}
@@ -277,23 +307,37 @@ class Orchestrator:
         user_message: str,
         assistant_message: str,
         source_message_id: int,
-    ) -> dict[str, float]:
+    ) -> dict[str, object]:
         memory_latency = 0.0
         summary_latency = 0.0
+        memory_status = "skipped"
+        summary_status = "not_due"
+        memory_model: str | None = None
+        summary_model: str | None = None
         if not ContextMemoryService.is_trivial(user_message):
             try:
                 state = self.context_memory.get(session_id)
-                update, memory_latency, model, _ = await self.context_intelligence.update_memory(
-                    state, user_message, assistant_message, source_message_id
+                update, memory_latency, model, fallback = (
+                    await self.context_intelligence.update_memory(
+                        state, user_message, assistant_message, source_message_id
+                    )
                 )
-                self.context_memory.apply_memory_update(
+                memory_model = model
+                saved_state = self.context_memory.apply_memory_update(
                     session_id,
                     update,
                     source_message_id=source_message_id,
                     router_model=model,
                     source_text=user_message,
                 )
+                if saved_state.version > state.version:
+                    memory_status = (
+                        "safety_net" if fallback or not update.memory_worthy else "updated"
+                    )
+                else:
+                    memory_status = "empty"
             except Exception:
+                memory_status = "failed"
                 logger.debug("memory_update_failed session_id=%s", session_id, exc_info=True)
 
         try:
@@ -304,22 +348,31 @@ class Orchestrator:
         if batch is not None:
             try:
                 state = self.context_memory.get(session_id)
-                update, summary_latency, model, _ = await self.context_intelligence.update_summary(
-                    state,
-                    [f"{item.role}: {item.content}" for item in batch.messages],
-                    batch.through_message_id,
+                update, summary_latency, model, fallback = (
+                    await self.context_intelligence.update_summary(
+                        state,
+                        [f"{item.role}: {item.content}" for item in batch.messages],
+                        batch.through_message_id,
+                    )
                 )
+                summary_model = model
                 self.context_memory.apply_summary_update(
                     session_id,
                     update,
                     through_message_id=batch.through_message_id,
                     router_model=model,
                 )
+                summary_status = "fallback" if fallback else "updated"
             except Exception:
+                summary_status = "failed"
                 logger.debug("summary_update_failed session_id=%s", session_id, exc_info=True)
         return {
             "memory_update_latency_ms": memory_latency,
             "summary_update_latency_ms": summary_latency,
+            "memory_update_status": memory_status,
+            "summary_update_status": summary_status,
+            "memory_model": memory_model,
+            "summary_model": summary_model,
         }
 
     @staticmethod

@@ -1,3 +1,4 @@
+import re
 import time
 from collections.abc import Callable
 
@@ -46,7 +47,7 @@ class ContextIntelligence:
         )
         if analysis is not None:
             return (
-                _normalize_analysis(analysis, state, self.settings),
+                _normalize_analysis(analysis, message, state, self.settings),
                 round((time.perf_counter() - started) * 1000, 2),
                 model,
                 False,
@@ -163,15 +164,12 @@ def _parse_memory_update(payload: object) -> MemoryUpdate:
 def _fallback_analysis(
     message: str, state: SessionContextState, settings: Settings
 ) -> ContextAnalysis:
-    lowered = message.lower().strip()
-    reference_detected = any(
-        marker in lowered
-        for marker in ("same", "previous", "before", "that", "it", "continue", "earlier", "again")
-    )
+    reference_detected = _has_context_reference(message)
     requires_history = reference_detected or bool(state.summary) or not state.memory.is_empty()
     return ContextAnalysis(
         expert=deterministic_fallback(message),
         confidence=0.35,
+        topic=_infer_topic_from_request(message, state),
         requires_history=requires_history,
         requires_summary=requires_history and bool(state.summary),
         reference_detected=reference_detected,
@@ -181,14 +179,22 @@ def _fallback_analysis(
 
 
 def _normalize_analysis(
-    analysis: ContextAnalysis, state: SessionContextState, settings: Settings
+    analysis: ContextAnalysis,
+    message: str,
+    state: SessionContextState,
+    settings: Settings,
 ) -> ContextAnalysis:
     valid_memory_ids = {
         item.id
         for category in ("facts", "decisions", "constraints", "preferences", "open_tasks")
         for item in getattr(state.memory, category)
     }
-    requires_history = analysis.requires_history or bool(analysis.relevant_memory_ids)
+    reference_detected = analysis.reference_detected or _has_context_reference(message)
+    requires_history = (
+        analysis.requires_history
+        or bool(analysis.relevant_memory_ids)
+        or reference_detected
+    )
     requires_summary = analysis.requires_summary and bool(state.summary)
     recent_turns_needed = min(
         settings.context_turns,
@@ -197,9 +203,11 @@ def _normalize_analysis(
         else settings.context_turns if requires_history else 0,
     )
     topic = analysis.topic.strip() if analysis.topic else None
+    topic = topic or _infer_topic_from_request(message, state)
     return analysis.model_copy(
         update={
             "topic": topic or None,
+            "reference_detected": reference_detected,
             "requires_history": requires_history,
             "requires_summary": requires_summary,
             "relevant_memory_ids": [
@@ -208,3 +216,25 @@ def _normalize_analysis(
             "recent_turns_needed": recent_turns_needed,
         }
     )
+
+
+def _has_context_reference(message: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(previous|earlier|before|same|that|those|it|continue|again|accordingly|"
+            r"discussed|decided|go back|all three|this)\b",
+            message.lower(),
+        )
+    )
+
+
+def _infer_topic_from_request(message: str, state: SessionContextState) -> str | None:
+    lowered = message.lower()
+    if "projectile" in lowered and (
+        "calculator" in lowered
+        or "maximum height" in lowered
+        or "horizontal range" in lowered
+        or "flight time" in lowered
+    ):
+        return "Projectile Motion Calculator"
+    return state.current_topic

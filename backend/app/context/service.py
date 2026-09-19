@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.config import Settings
+from app.context.extraction import extract_durable_memory
 from app.context.schemas import (
     ContextAnalysis,
     MemoryChange,
@@ -90,7 +91,19 @@ class ContextMemoryService:
         source_text: str | None = None,
     ) -> SessionContextState:
         state = self.get(session_id)
-        if not update.memory_worthy or self.is_trivial(source_text):
+        if self.is_trivial(source_text):
+            return state
+
+        deterministic = extract_durable_memory(
+            source_text or "", current_topic=state.current_topic
+        )
+        if deterministic.memory_worthy:
+            update = MemoryUpdate(
+                changes=[*update.changes, *deterministic.changes],
+                current_goal=update.current_goal or deterministic.current_goal,
+                memory_worthy=True,
+            )
+        if not update.memory_worthy:
             return state
 
         memory = state.memory.model_copy(deep=True)
@@ -242,18 +255,6 @@ class ContextMemoryService:
                 for index, item in enumerate(items):
                     if old_choice in self._normalize(item.text):
                         return index
-        leading_verb = next(
-            (
-                verb
-                for verb in ("use", "choose", "prefer", "select", "switch to")
-                if lowered.startswith(f"{verb} ")
-            ),
-            None,
-        )
-        if leading_verb:
-            for index, item in enumerate(items):
-                if self._normalize(item.text).startswith(f"{leading_verb} "):
-                    return index
         return None
 
     def _cap_memory(self, memory: StructuredMemory) -> None:

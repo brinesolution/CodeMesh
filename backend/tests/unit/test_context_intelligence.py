@@ -112,3 +112,24 @@ async def test_malformed_router_context_output_uses_deterministic_fallback() -> 
     assert analysis.reference_detected is True
     assert analysis.requires_history is True
     assert analysis.recent_turns_needed == 3
+
+
+async def test_empty_router_analysis_still_identifies_project_topic() -> None:
+    settings = Settings()
+    registry = build_model_registry(settings)
+    gateway = IntelligenceGateway()
+    gateway.outputs = [
+        '{"topic":null,"requires_history":false,"requires_summary":false,'
+        '"reference_detected":false,"relevant_memory_ids":[],"recent_turns_needed":0,'
+        '"memory_worthy":false}'
+    ]
+    intelligence = ContextIntelligence(gateway, registry, settings)
+
+    analysis, _, _, fallback = await intelligence.analyze(
+        "I am building a projectile-motion calculator with maximum height and range.",
+        SessionContextState(),
+        [],
+    )
+
+    assert fallback is False
+    assert analysis.topic == "Projectile Motion Calculator"
