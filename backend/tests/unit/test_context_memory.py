@@ -348,3 +348,32 @@ def test_empty_router_updates_replace_current_gravity_and_goal(tmp_path) -> None
         "angle-over-90",
         "normal-case",
     }
+
+
+def test_unrelated_router_goal_does_not_replace_durable_project_goal(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'goal-isolation.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+    service.record_analysis(
+        session_id,
+        ContextAnalysis(topic="projectile motion"),
+        "qwen3:0.6b",
+    )
+    service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text="Now implement everything we discussed in Python.",
+    )
+
+    state = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(current_goal="Explain cloud computing", memory_worthy=True),
+        source_message_id=2,
+        router_model="qwen3:0.6b",
+        source_text="Give me a short explanation of cloud computing.",
+    )
+
+    assert state.memory.current_goal == "Implement the projectile-motion calculator."

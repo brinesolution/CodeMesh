@@ -109,8 +109,11 @@ class ContextMemoryService:
         memory = state.memory.model_copy(deep=True)
         for change in update.changes:
             self._apply_change(memory, change, source_message_id)
-        if update.current_goal and update.current_goal.strip():
-            memory.current_goal = update.current_goal.strip()[:400]
+        goal = deterministic.current_goal
+        if not goal and update.current_goal and self._has_explicit_goal_signal(source_text):
+            goal = update.current_goal
+        if goal and goal.strip():
+            memory.current_goal = goal.strip()[:400]
         self._cap_memory(memory)
         updated = state.model_copy(
             update={
@@ -282,6 +285,11 @@ class ContextMemoryService:
     @staticmethod
     def _normalize(text: str) -> str:
         return re.sub(r"\s+", " ", text.strip().lower()).rstrip(".!?")
+
+    @staticmethod
+    def _has_explicit_goal_signal(text: str | None) -> bool:
+        lowered = (text or "").lower()
+        return any(marker in lowered for marker in ("current goal", "goal is", "we need to"))
 
 
 def _memory_item(values: dict[str, object]):
