@@ -17,7 +17,7 @@ const assistant: ChatMessage = {
 
 describe("restored routing trace", () => {
   it("reconstructs route and metrics from a persisted assistant message", () => {
-    const route = routeDataFromMessage(assistant, "auto", undefined, "session-1");
+    const route = routeDataFromMessage(assistant, "auto", undefined, "session-1", "qwen3:0.6b");
     const metrics = metricsDataFromMessage(assistant);
 
     expect(route).toMatchObject({

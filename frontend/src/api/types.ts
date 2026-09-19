@@ -1,4 +1,5 @@
 export type Mode = "auto" | "conversation" | "stem" | "coding";
+export type ModelRole = "router" | "conversation" | "stem" | "coding";
 export type { StreamEvent } from "./stream";
 
 export interface SessionSummary {
@@ -69,4 +70,27 @@ export interface SystemSnapshot {
   active_model: string | null;
   ollama_reachable: boolean | null;
   telemetry_available: boolean;
+}
+
+export interface InstalledModel {
+  name: string;
+  size_bytes: number | null;
+  digest: string | null;
+}
+
+export interface ModelRoleConfig {
+  key: ModelRole;
+  model: string;
+  label: string;
+  role: "routing" | "expert";
+  installed: boolean;
+}
+
+export interface ModelConfiguration {
+  ollama_reachable: boolean;
+  available_models: InstalledModel[];
+  models: ModelRoleConfig[];
+  assignments: Record<ModelRole, string>;
+  defaults: Record<ModelRole, string>;
+  active_model: string | null;
 }

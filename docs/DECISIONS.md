@@ -5,3 +5,4 @@
 - 2026-09-20: Model pulls retry resumable Ollama downloads three times because the local registry transfer intermittently returned DNS/TLS failures.
 - 2026-09-20: The React shell uses explicit fixed-height flex regions: sidebar history and main messages own the only scrollbars, while the sidebar footer, main header, and composer remain non-scrolling; guarded follow-to-bottom plus jump-to-latest preserves manual upward reading.
 - 2026-09-20: Bound Vitest to one worker because the default worker fan-out exhausted Node memory on the 16 GB Windows target even though the frontend suite itself passed.
+- 2026-09-20: Keep model assignments in one runtime `ModelRegistry`; the Models tab reads the installed Ollama catalog through `/api/v1/models`, validates assignments server-side, and lets routing/orchestration resolve the current role model at request time.

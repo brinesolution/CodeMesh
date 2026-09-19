@@ -9,11 +9,13 @@ class FakeGateway:
     def __init__(self, outputs: list[str]):
         self.outputs = outputs
         self.calls = 0
+        self.models: list[str] = []
 
     async def generate(
         self, *, model: str, messages: list[dict[str, str]], structured: bool = False
     ):
         self.calls += 1
+        self.models.append(model)
         return GenerationResult(self.outputs[min(self.calls - 1, len(self.outputs) - 1)], model)
 
     async def list_models(self):
@@ -70,3 +72,16 @@ async def test_low_confidence_router_response_uses_domain_guardrail() -> None:
 
     assert result.expert is ExpertRoute.STEM
     assert result.routing_fallback is True
+
+
+async def test_router_reads_the_current_registry_assignment() -> None:
+    gateway = FakeGateway(['{"expert":"conversation","confidence":0.9,"reason":"chat"}'])
+    settings = Settings()
+    registry = build_model_registry(settings)
+    registry.assign_model("router", "gemma3:1b")
+    service = RouterService(gateway, registry, settings)
+
+    result = await service.route("Explain this idea in simple terms.")
+
+    assert result.router_model == "gemma3:1b"
+    assert gateway.models == ["gemma3:1b"]

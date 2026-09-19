@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, streamChat } from "./api/client";
-import type { ChatMessage, MetricsData, Mode, RouteData, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
+import type { ChatMessage, MetricsData, Mode, ModelConfiguration, ModelRole, RouteData, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
 import { Sidebar } from "./components/app-shell/Sidebar";
 import { Header } from "./components/app-shell/Header";
 import { ChatView } from "./components/chat/ChatView";
@@ -30,6 +30,11 @@ export default function App() {
   const [telemetryOpen, setTelemetryOpen] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
   const [system, setSystem] = useState<SystemSnapshot | null>(null);
+  const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration | null>(null);
+  const [modelError, setModelError] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [savingModelRole, setSavingModelRole] = useState<ModelRole | null>(null);
+  const [resettingModels, setResettingModels] = useState(false);
   const [route, setRoute] = useState<RouteData | undefined>();
   const [validation, setValidation] = useState<ValidationData | undefined>();
   const [metrics, setMetrics] = useState<MetricsData | undefined>();
@@ -75,6 +80,55 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [telemetryOpen]);
 
+  const refreshModels = useCallback(async () => {
+    setModelsLoading(true);
+    setModelError(null);
+    try {
+      const configuration = await api.listModels();
+      setModelConfiguration(configuration);
+      return configuration;
+    } catch (caught) {
+      setModelError(caught instanceof Error ? caught.message : "The Ollama model list could not be loaded.");
+      throw caught;
+    } finally {
+      setModelsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshModels().catch(() => undefined);
+  }, [refreshModels]);
+
+  useEffect(() => {
+    const routerModel = modelConfiguration?.assignments.router;
+    if (!routerModel) return;
+    setRoute((current) => current && current.mode === "auto" && !current.router_model ? { ...current, router_model: routerModel } : current);
+  }, [modelConfiguration]);
+
+  const assignModel = useCallback(async (role: ModelRole, model: string) => {
+    setSavingModelRole(role);
+    setModelError(null);
+    try {
+      setModelConfiguration(await api.assignModel(role, model));
+    } catch (caught) {
+      setModelError(caught instanceof Error ? caught.message : "The model assignment could not be saved.");
+    } finally {
+      setSavingModelRole(null);
+    }
+  }, []);
+
+  const resetModels = useCallback(async () => {
+    setResettingModels(true);
+    setModelError(null);
+    try {
+      setModelConfiguration(await api.resetModels());
+    } catch (caught) {
+      setModelError(caught instanceof Error ? caught.message : "The default model assignments could not be restored.");
+    } finally {
+      setResettingModels(false);
+    }
+  }, []);
+
   const selectSession = async (id: string) => {
     try {
       const detail = await api.getSession(id);
@@ -82,7 +136,7 @@ export default function App() {
     } catch { setError("That conversation could not be loaded."); }
   };
 
-  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setMessages([]); setInput(""); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); };
+  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setMessages([]); setInput(""); setMode("auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); };
 
   const deleteSession = async (id: string) => {
     try { await api.deleteSession(id); const remaining = await refreshSessions(); if (id === activeSessionId) { if (remaining[0]) await selectSession(remaining[0].id); else newChat(); } } catch { setError("The conversation could not be deleted."); }
@@ -125,7 +179,7 @@ export default function App() {
   return <div className="app-shell">
     <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} />
     {sidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
-    <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
-    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} onClose={() => setTelemetryOpen(false)} />
+    <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} routerModel={modelConfiguration?.assignments.router ?? null} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
+    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} onClose={() => setTelemetryOpen(false)} />
   </div>;
 }

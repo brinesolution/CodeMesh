@@ -1,4 +1,4 @@
-import type { Mode, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot } from "./types";
+import type { Mode, ModelConfiguration, ModelRole, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot } from "./types";
 import { parseNdjsonChunk } from "./stream";
 
 const API_BASE = (import.meta.env.VITE_CODEMESH_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -31,6 +31,13 @@ export const api = {
     }),
   deleteSession: (id: string) => request<{ deleted: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
   system: () => request<SystemSnapshot>("/system"),
+  listModels: () => request<ModelConfiguration>("/models"),
+  assignModel: (role: ModelRole, model: string) =>
+    request<ModelConfiguration>(`/models/${role}`, {
+      method: "PUT",
+      body: JSON.stringify({ model }),
+    }),
+  resetModels: () => request<ModelConfiguration>("/models/reset", { method: "POST" }),
 };
 
 export async function streamChat(
@@ -65,4 +72,3 @@ export async function streamChat(
     reader.releaseLock();
   }
 }
-

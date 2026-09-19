@@ -1,7 +1,6 @@
 import type { ChatMessage, MetricsData, Mode, RouteData, ValidationData } from "../api/types";
 import { expertDisplayLabel, modelDisplayLabel } from "./format";
 
-export const ROUTER_MODEL = "qwen3:0.6b";
 export const ROUTING_MODE_OPTIONS: readonly Mode[] = ["auto", "conversation", "stem", "coding"];
 
 const expertRoutes = new Set<NonNullable<ChatMessage["route"]>>(["conversation", "stem", "coding"]);
@@ -19,6 +18,7 @@ export function routeDataFromMessage(
   preferredMode: Mode,
   fallback?: RouteData,
   sessionId?: string,
+  routerModel?: string | null,
 ): RouteData | undefined {
   if (!message || message.role !== "assistant") return fallback;
   if (!isExpertRoute(message.route) || !message.model) return fallback;
@@ -34,7 +34,7 @@ export function routeDataFromMessage(
     expert: message.route,
     confidence: message.route_confidence ?? null,
     reason: restoredMode === "auto" ? "Restored from the saved Auto route." : "Manual specialist selection recorded with the response.",
-    router_model: restoredMode === "auto" ? ROUTER_MODEL : null,
+    router_model: restoredMode === "auto" ? routerModel ?? null : null,
     latency_ms: message.route_latency_ms ?? null,
     routing_fallback: false,
     low_confidence: false,

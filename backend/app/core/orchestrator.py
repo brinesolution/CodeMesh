@@ -8,7 +8,7 @@ from app.core.errors import CodeMeshError, GenerationCancelled
 from app.experts.registry import get_expert
 from app.models.gateway import ModelGateway
 from app.models.lifecycle import ModelLifecycle
-from app.models.registry import ModelSpec
+from app.models.registry import ModelRegistry
 from app.persistence.repository import ChatRepository
 from app.routing.schema import RouteResult
 from app.routing.service import RouterService
@@ -27,7 +27,7 @@ class Orchestrator:
         settings: Settings,
         gateway: ModelGateway,
         repository: ChatRepository,
-        models: dict[str, ModelSpec],
+        models: ModelRegistry,
         router: RouterService,
     ) -> None:
         self.settings = settings
@@ -71,7 +71,7 @@ class Orchestrator:
         try:
             route = self.router.manual(mode) if mode != "auto" else await self.router.route(message)
             expert = get_expert(route.expert.value)
-            expert_model = self.models[expert.model_key]
+            expert_model = self.models.get_model(expert.model_key)
             yield {
                 "type": "route",
                 "data": {
