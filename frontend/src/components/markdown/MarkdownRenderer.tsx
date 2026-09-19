@@ -2,10 +2,30 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Clipboard, Check } from "lucide-react";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface Props { content: string; }
+
+const fencedCodePattern = /(```[\s\S]*?```|~~~[\s\S]*?~~~)/g;
+
+/** Convert the bracket delimiters commonly emitted by local models to remark-math syntax.
+ * Fenced code is kept untouched so examples containing LaTeX remain code.
+ */
+function normalizeMathDelimiters(content: string) {
+  return content
+    .split(fencedCodePattern)
+    .map((part, index) => {
+      if (index % 2 === 1) return part;
+      return part
+        .replace(/\\\[([\s\S]*?)\\\]/g, (_, math: string) => `\n\n$$\n${math.trim()}\n$$\n\n`)
+        .replace(/\\\(([\s\S]*?)\\\)/g, (_, math: string) => `$${math}$`);
+    })
+    .join("");
+}
 
 function CodeBlock({ language, value }: { language: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -33,7 +53,8 @@ function CodeBlock({ language, value }: { language: string; value: string }) {
 export function MarkdownRenderer({ content }: Props) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false, errorColor: "#ff7e91" }]]}
       skipHtml
       components={{
         code({ className, children, ...props }) {
@@ -44,8 +65,7 @@ export function MarkdownRenderer({ content }: Props) {
         a({ children, ...props }) { return <a {...props} target="_blank" rel="noreferrer">{children}</a>; },
       }}
     >
-      {content}
+      {normalizeMathDelimiters(content)}
     </ReactMarkdown>
   );
 }
-
