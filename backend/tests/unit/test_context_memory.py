@@ -350,6 +350,36 @@ def test_empty_router_updates_replace_current_gravity_and_goal(tmp_path) -> None
     }
 
 
+def test_empty_router_update_handles_gravity_constant_and_degree_symbol_tasks(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'gravity-tasks.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    service = ContextMemoryService(repository, settings)
+
+    state = service.apply_memory_update(
+        session_id,
+        MemoryUpdate(changes=[], memory_worthy=False),
+        source_message_id=1,
+        router_model="qwen3:0.6b",
+        source_text=(
+            "Change the gravity constant to 9.80665 m/s² instead of 9.81. "
+            "The goal now is to add unit tests. Test 0°, 45°, negative velocity, "
+            "angle above 90°, and a normal 30 m/s at 40° case."
+        ),
+    )
+
+    assert [item.text for item in state.memory.facts if item.id == "projectile-gravity"] == [
+        "Gravity = 9.80665 m/s²."
+    ]
+    assert {item.id for item in state.memory.open_tasks} == {
+        "zero-degree",
+        "45-degree",
+        "negative-velocity",
+        "angle-over-90",
+        "normal-case",
+    }
+
+
 def test_empty_router_update_extracts_offline_readability_constraints(tmp_path) -> None:
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'offline-constraints.db'}")
     repository = ChatRepository(settings)

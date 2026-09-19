@@ -5,7 +5,8 @@ import re
 from app.context.schemas import MemoryChange, MemoryUpdate
 
 _GRAVITY_BEFORE_VALUE = re.compile(
-    r"(?:gravity|gravitational acceleration)\s*(?:as|=|of|to|from)?\s*"
+    r"(?:gravity|gravitational acceleration)(?:\s+constant)?\s*"
+    r"(?:as|=|of|to|from|is)?\s*"
     r"(?P<value>\d+(?:\.\d+)?)"
 )
 _GRAVITY_AFTER_VALUE = re.compile(
@@ -40,7 +41,7 @@ def extract_durable_memory(
             )
         )
     gravity = _gravity_value(lowered)
-    if gravity and project_topic:
+    if gravity:
         changes.append(
             MemoryChange(
                 category="facts",
@@ -173,7 +174,8 @@ def extract_durable_memory(
         project_name = "projectile-motion calculator" if project_topic else "current project"
         current_goal = f"Implement the {project_name}."
 
-    if "tests for" in lowered and "unit test" in lowered:
+    test_text = lowered.replace("°", " degrees").replace("-", " ")
+    if "unit test" in test_text and ("tests for" in test_text or "test " in test_text):
         for task_id, text in (
             ("zero-degree", "Test a 0-degree input."),
             ("45-degree", "Test a 45-degree input."),
@@ -181,19 +183,22 @@ def extract_durable_memory(
             ("angle-over-90", "Reject an angle above 90 degrees."),
             ("normal-case", "Test 30 m/s at 40 degrees."),
         ):
-            if task_id == "zero-degree" and "0-degree" not in lowered and "0 degree" not in lowered:
+            if task_id == "zero-degree" and not re.search(r"\b0\s*degrees?\b", test_text):
                 continue
             if (
                 task_id == "45-degree"
-                and "45 degrees" not in lowered
-                and "45-degree" not in lowered
+                and not re.search(r"\b45\s*degrees?\b", test_text)
             ):
                 continue
-            if task_id == "negative-velocity" and "negative velocity" not in lowered:
+            if task_id == "negative-velocity" and "negative velocity" not in test_text:
                 continue
-            if task_id == "angle-over-90" and "above 90" not in lowered and ">90" not in lowered:
+            if (
+                task_id == "angle-over-90"
+                and "above 90" not in test_text
+                and ">90" not in test_text
+            ):
                 continue
-            if task_id == "normal-case" and "30 m/s" not in lowered:
+            if task_id == "normal-case" and "30 m/s" not in test_text:
                 continue
             changes.append(
                 MemoryChange(
