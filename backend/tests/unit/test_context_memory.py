@@ -266,7 +266,7 @@ def test_empty_router_update_keeps_implementation_decisions_and_constraints(tmp_
     service = ContextMemoryService(repository, settings)
     service.record_analysis(
         session_id,
-        ContextAnalysis(topic="Projectile Motion Calculator"),
+        ContextAnalysis(topic="projectile motion"),
         "qwen3:0.6b",
     )
 

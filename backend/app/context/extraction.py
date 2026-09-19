@@ -28,8 +28,8 @@ def extract_durable_memory(
     changes: list[MemoryChange] = []
     current_goal: str | None = None
 
-    project_topic = _is_projectile_calculator(lowered) or current_topic == (
-        "Projectile Motion Calculator"
+    project_topic = _is_projectile_calculator(lowered) or (
+        current_topic is not None and "projectile" in current_topic.lower()
     )
     if project_topic:
         changes.append(
