@@ -59,3 +59,14 @@ async def test_manual_mode_never_calls_router() -> None:
 
     assert result.expert is ExpertRoute.STEM
     assert gateway.calls == 0
+
+
+async def test_low_confidence_router_response_uses_domain_guardrail() -> None:
+    gateway = FakeGateway(['{"expert":"coding","confidence":0.0,"reason":"uncertain"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("A circuit has 12 volts and 3 ohms resistance. Find current.")
+
+    assert result.expert is ExpertRoute.STEM
+    assert result.routing_fallback is True

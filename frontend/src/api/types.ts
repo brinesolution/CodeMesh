@@ -50,6 +50,7 @@ export interface ValidationData {
 
 export interface MetricsData {
   route_latency_ms: number | null;
+  model_switch_latency_ms: number | null;
   generation_latency_ms: number;
   total_latency_ms: number;
   model: string;

@@ -86,7 +86,7 @@ class Orchestrator:
                 "type": "status",
                 "data": {"state": "model_loading", "model": expert_model.model},
             }
-            await self.lifecycle.prepare_specialist(expert_model.model)
+            model_switch_latency = await self.lifecycle.prepare_specialist(expert_model.model)
             context = self.context.build_context(session_id, expert.context_char_limit)
             prompt_messages = [{"role": "system", "content": expert.system_prompt}, *context]
             prompt_messages.append({"role": "user", "content": message})
@@ -119,6 +119,7 @@ class Orchestrator:
             health = await self.gateway.health()
             metrics = {
                 "route_latency_ms": route.latency_ms,
+                "model_switch_latency_ms": model_switch_latency,
                 "generation_latency_ms": generation_latency,
                 "total_latency_ms": total_timer.elapsed_ms(),
                 "model": expert_model.model,

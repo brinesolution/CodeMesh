@@ -1,10 +1,9 @@
-from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import select
 
 from app.persistence.database import build_engine, build_session_factory
-from app.persistence.tables import Base, ChatMessage, ChatSession
+from app.persistence.tables import Base, ChatMessage, ChatSession, utcnow
 
 
 class ChatRepository:
@@ -48,7 +47,7 @@ class ChatRepository:
             db.add(message)
             session = db.get(ChatSession, session_id)
             if session:
-                session.updated_at = datetime.utcnow()
+                session.updated_at = utcnow()
                 if fields.get("role") == "user" and session.title == "New chat":
                     session.title = fields.get("content", "New chat").strip()[:72] or "New chat"
             db.commit()
@@ -64,4 +63,3 @@ class ChatRepository:
                 .limit(limit)
             )
             return list(reversed(list(db.scalars(query))))
-

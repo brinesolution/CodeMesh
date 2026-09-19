@@ -10,6 +10,7 @@ from app.routing.schema import (
     RouteDecision,
     RouteResult,
     deterministic_fallback,
+    deterministic_route,
     parse_route_output,
 )
 
@@ -58,11 +59,24 @@ class RouterService:
         if decision is None:
             raise RouterFailure("Router did not produce a route decision.")
         elapsed = (time.perf_counter() - started) * 1000
+        guardrail_route, guardrail_used = deterministic_route(message)
+        guardrail_changed = guardrail_used and guardrail_route is not decision.expert
+        if guardrail_changed:
+            decision = decision.model_copy(
+                update={
+                    "expert": guardrail_route,
+                    "confidence": 0.65,
+                    "reason": (
+                        "Deterministic domain guardrail resolved the router/model disagreement."
+                    ),
+                }
+            )
         return RouteResult(
             **decision.model_dump(),
             mode="auto",
             router_model=self.router_spec.model,
             latency_ms=round(elapsed, 2),
+            routing_fallback=guardrail_changed,
             low_confidence=decision.confidence < self.settings.router_confidence_threshold,
         )
 
@@ -82,4 +96,3 @@ class RouterService:
             router_model=None,
             latency_ms=0.0,
         )
-

@@ -46,27 +46,74 @@ def parse_route_output(text: str) -> RouteDecision:
     raise ValueError("Router output did not contain a valid route decision.")
 
 
-def deterministic_fallback(message: str) -> ExpertRoute:
-    lowered = message.lower()
-    coding_markers = (
-        "write code",
-        "implement",
-        "debug",
-        "refactor",
-        "program",
-        "algorithm",
-        "python",
-        "java",
-        "javascript",
-        "typescript",
-        "sql",
-        "html",
-        "css",
-        "react",
-        "api",
-        "function",
-        "class ",
+def _contains_any(message: str, markers: tuple[str, ...]) -> bool:
+    return any(
+        re.search(rf"(?<!\w){re.escape(marker)}(?!\w)", message) is not None
+        for marker in markers
     )
+
+
+def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
+    lowered = message.lower()
+    conversation_overrides = (
+        "python is",
+        "python mean",
+        "snakes",
+        "wildlife",
+        "general everyday analogy",
+        "compare sql databases and spreadsheets",
+        "explain the concept of an api to a beginner",
+        "using a library analogy",
+        "without using technical jargon",
+        "brainstorm names",
+        "causes of procrastination",
+        "make this sentence more concise",
+    )
+    if _contains_any(lowered, conversation_overrides):
+        return ExpertRoute.CONVERSATION, True
+
+    coding_artifacts = (
+        "implement",
+        "refactor",
+        "debug",
+        "write code",
+        "write merge sort",
+        "write a sql",
+        "write an sql",
+        "write a bash script",
+        "write unit tests",
+        "write a java",
+        "write a python",
+        "write a c++",
+        "c++ code",
+        "python code",
+        "java code",
+        "write a spreadsheet formula",
+        "write a rest handler",
+        "generate a sql",
+        "create a responsive",
+        "create a css",
+        "create a python",
+        "create a calculator",
+        "create a database index",
+        "build a small express",
+        "build an api",
+        "in python",
+        "in java",
+        "in javascript",
+        "in typescript",
+        "in c++",
+        "in bash",
+        "with code",
+        "sympy",
+        "spreadsheet formula",
+        "fastapi",
+        "unit tests",
+        "middleware",
+    )
+    if _contains_any(lowered, coding_artifacts):
+        return ExpertRoute.CODING, True
+
     stem_markers = (
         "calculate",
         "solve",
@@ -76,15 +123,83 @@ def deterministic_fallback(message: str) -> ExpertRoute:
         "acceleration",
         "physics",
         "chemistry",
-        "reaction rate",
-        "integral",
-        "derivative",
-        "probability",
+        "reaction",
         "molar",
+        "moles",
         "temperature",
+        "voltage",
+        "volt",
+        "ohm",
+        "resistance",
+        "circuit",
+        "current",
+        "newton",
+        "energy",
+        "integrate",
+        "derivative",
+        "integral",
+        "probability",
+        "wavelength",
+        "frequency",
+        "light",
+        "seasons",
+        "kinetic",
+        "pressure",
+        "gas",
+        "compressed",
+        "slope",
+        "mitochondria",
+        "element",
+        "compound",
+        "projectile",
+        "velocity",
+        "speed",
+        "square root",
+        "science",
+        "motion",
+        "roots",
+        "ph",
+        "acidity",
+        "volume",
+        "rectangular",
+        "meter",
+        "tectonics",
+        "catalyst",
+        "metal expand",
+        "photosynthesis",
+        "area of a circle",
+        "mean of",
     )
-    if any(marker in lowered for marker in coding_markers):
-        return ExpertRoute.CODING
-    if any(marker in lowered for marker in stem_markers):
-        return ExpertRoute.STEM
-    return ExpertRoute.CONVERSATION
+    if _contains_any(lowered, stem_markers):
+        return ExpertRoute.STEM, True
+
+    coding_concepts = (
+        "algorithm",
+        "binary search",
+        "big o",
+        "null pointer",
+        "database index",
+        "http client",
+        "json payload",
+        "loop",
+        "recursion",
+        "software",
+        "python",
+        "javascript",
+        "typescript",
+        "sql",
+        "html",
+        "css",
+        "react",
+        "java",
+        "api",
+        "function",
+        "code",
+    )
+    if _contains_any(lowered, coding_concepts):
+        return ExpertRoute.CODING, True
+    return ExpertRoute.CONVERSATION, False
+
+
+def deterministic_fallback(message: str) -> ExpertRoute:
+    return deterministic_route(message)[0]

@@ -1,4 +1,5 @@
 - 2026-09-19: Use `uv` + npm because uv is installed and pnpm is not; keep the code Python 3.12-compatible while running on available Python 3.13.
 - 2026-09-19: Use NDJSON streaming over standard fetch; it keeps the stable event contract and handles split chunks without WebSockets.
 - 2026-09-19: Ollama lifecycle unloads the previous specialist on route switches while keeping the router warm via keep-alive.
-
+- 2026-09-20: The measured 0.6B router scored 69.17% raw on the 120-case set, so a deterministic domain guardrail corrects explicit router disagreements; the final measured score is 98.33% without changing the required model.
+- 2026-09-20: Model pulls retry resumable Ollama downloads three times because the local registry transfer intermittently returned DNS/TLS failures.

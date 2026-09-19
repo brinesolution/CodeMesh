@@ -66,6 +66,7 @@ def test_manual_chat_stream_emits_contract_and_persists(tmp_path) -> None:
         "done",
     ]
     assert events[-1]["data"]["message"].startswith("```python")
+    assert events[-2]["data"]["model_switch_latency_ms"] == 0.0
     session_id = events[0]["data"]["session_id"]
     loaded = repository.get_session(session_id)
     assert loaded is not None

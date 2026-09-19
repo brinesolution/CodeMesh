@@ -4,9 +4,9 @@ import { useState } from "react";
 import type { RouteData, ValidationData } from "../../api/types";
 import { modeLabel } from "../../lib/format";
 
-interface Props { route?: RouteData; validation?: ValidationData; generationLatency?: number | null; }
+interface Props { route?: RouteData; validation?: ValidationData; modelSwitchLatency?: number | null; generationLatency?: number | null; }
 
-export function RoutingTrace({ route, validation, generationLatency }: Props) {
+export function RoutingTrace({ route, validation, modelSwitchLatency, generationLatency }: Props) {
   const [expanded, setExpanded] = useState(false);
   if (!route) return null;
   return (
@@ -26,6 +26,7 @@ export function RoutingTrace({ route, validation, generationLatency }: Props) {
             <div className="route-detail">Confidence<strong>{Math.round(route.confidence * 100)}%</strong></div>
             <div className="route-detail">Route time<strong>{route.latency_ms == null ? "—" : `${Math.round(route.latency_ms)} ms`}</strong></div>
             <div className="route-detail">Expert model<strong>{route.expert_model_label}</strong></div>
+            <div className="route-detail">Model switch<strong>{modelSwitchLatency == null ? "—" : `${Math.round(modelSwitchLatency)} ms`}</strong></div>
             <div className="route-detail">Generation<strong>{generationLatency == null ? "—" : `${Math.round(generationLatency)} ms`}</strong></div>
           </div>
           <div className="route-detail">Reason<strong>{route.reason}</strong></div>
@@ -35,4 +36,3 @@ export function RoutingTrace({ route, validation, generationLatency }: Props) {
     </div>
   );
 }
-

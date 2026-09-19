@@ -40,6 +40,7 @@ def main() -> int:
                         "expert": expert,
                         "elapsed_ms": elapsed,
                         "route": payload.get("route"),
+                        "metrics": payload.get("metrics"),
                         "before": before,
                         "after": after,
                     }

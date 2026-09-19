@@ -9,11 +9,12 @@ interface Props {
   message: ChatMessage;
   route?: RouteData;
   validation?: ValidationData;
+  modelSwitchLatency?: number | null;
   generationLatency?: number | null;
   onRegenerate?: () => void;
 }
 
-export function MessageBubble({ message, route, validation, generationLatency, onRegenerate }: Props) {
+export function MessageBubble({ message, route, validation, modelSwitchLatency, generationLatency, onRegenerate }: Props) {
   const [copied, setCopied] = useState(false);
   const isAssistant = message.role === "assistant";
   const copy = async () => {
@@ -33,11 +34,10 @@ export function MessageBubble({ message, route, validation, generationLatency, o
               <button type="button" onClick={copy}>{copied ? <Check size={13} /> : <Clipboard size={13} />}{copied ? "Copied" : "Copy"}</button>
               {onRegenerate && <button type="button" onClick={onRegenerate}><RefreshCw size={13} />Regenerate</button>}
             </div>
-            <RoutingTrace route={route} validation={validation} generationLatency={generationLatency} />
+            <RoutingTrace route={route} validation={validation} modelSwitchLatency={modelSwitchLatency} generationLatency={generationLatency} />
           </>
         )}
       </div>
     </article>
   );
 }
-
