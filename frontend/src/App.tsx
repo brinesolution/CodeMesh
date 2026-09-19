@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, streamChat } from "./api/client";
-import type { ChatMessage, MetricsData, Mode, RouteData, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
+import type { ChatMessage, MetricsData, Mode, RouteData, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
 import { Sidebar } from "./components/app-shell/Sidebar";
 import { Header } from "./components/app-shell/Header";
 import { ChatView } from "./components/chat/ChatView";
 import { TelemetryDrawer } from "./components/telemetry/TelemetryDrawer";
 import { modeLabel } from "./lib/format";
+import { latestAssistantMessage, metricsDataFromMessage, routeDataFromMessage, validationDataFromMessage } from "./lib/routing";
 
 function errorMessage(code: string | undefined, fallback: string): string {
   return ({
@@ -36,6 +37,14 @@ export default function App() {
   const abortRef = useRef<AbortController | null>(null);
   const lastPromptRef = useRef<{ text: string; mode: Mode } | null>(null);
 
+  const restoreSessionState = (detail: SessionDetail) => {
+    const assistant = latestAssistantMessage(detail.messages);
+    setMessages(detail.messages);
+    setRoute(routeDataFromMessage(assistant, detail.preferred_mode, undefined, detail.id));
+    setMetrics(metricsDataFromMessage(assistant));
+    setValidation(validationDataFromMessage(assistant));
+  };
+
   const refreshSessions = useCallback(async () => {
     try {
       const loaded = await api.listSessions();
@@ -53,7 +62,7 @@ export default function App() {
       if (loaded[0]) {
         setActiveSessionId(loaded[0].id);
         setMode(loaded[0].preferred_mode ?? "auto");
-        try { setMessages((await api.getSession(loaded[0].id)).messages); } catch { setOnline(false); }
+        try { restoreSessionState(await api.getSession(loaded[0].id)); } catch { setOnline(false); }
       }
     });
   }, [refreshSessions]);
@@ -69,7 +78,7 @@ export default function App() {
   const selectSession = async (id: string) => {
     try {
       const detail = await api.getSession(id);
-      setActiveSessionId(id); setMessages(detail.messages); setMode(detail.preferred_mode ?? "auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false);
+      setActiveSessionId(id); setMode(detail.preferred_mode ?? "auto"); setError(null); restoreSessionState(detail); setSidebarOpen(false);
     } catch { setError("That conversation could not be loaded."); }
   };
 
@@ -119,4 +128,3 @@ export default function App() {
     <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} onClose={() => setTelemetryOpen(false)} />
   </div>;
 }
-

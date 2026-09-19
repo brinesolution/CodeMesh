@@ -30,7 +30,7 @@ export interface SessionDetail extends SessionSummary {
 export interface RouteData {
   mode: Mode;
   expert: "conversation" | "stem" | "coding";
-  confidence: number;
+  confidence: number | null;
   reason: string;
   router_model: string | null;
   latency_ms: number | null;
@@ -51,8 +51,8 @@ export interface ValidationData {
 export interface MetricsData {
   route_latency_ms: number | null;
   model_switch_latency_ms: number | null;
-  generation_latency_ms: number;
-  total_latency_ms: number;
+  generation_latency_ms: number | null;
+  total_latency_ms: number | null;
   model: string;
   telemetry?: SystemSnapshot;
 }

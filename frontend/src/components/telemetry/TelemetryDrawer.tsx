@@ -1,7 +1,7 @@
 import { Activity, Cpu, HardDrive, MemoryStick, X } from "lucide-react";
 
 import type { MetricsData, RouteData, SystemSnapshot } from "../../api/types";
-import { formatBytes, formatPercent } from "../../lib/format";
+import { formatBytes, formatPercent, modeLabel } from "../../lib/format";
 
 interface Props { open: boolean; system: SystemSnapshot | null; route?: RouteData; metrics?: MetricsData; onClose: () => void; }
 
@@ -18,7 +18,7 @@ export function TelemetryDrawer({ open, system, route, metrics, onClose }: Props
     <aside className="telemetry" role="dialog" aria-label="System telemetry">
       <div className="telemetry-head"><div><h2>Routing & telemetry</h2><p>Live local runtime signals. Polls while this panel is open.</p></div><button type="button" className="icon-button" onClick={onClose} aria-label="Close telemetry"><X size={17} /></button></div>
       <section className="panel-section"><h3><Activity size={13} style={{ verticalAlign: "-2px", marginRight: 6 }} />Routing trace</h3>
-        <div className="telemetry-card"><dl><dt>Route</dt><dd>{route?.expert ?? "—"}</dd><dt>Router</dt><dd>{route?.router_model ?? "Manual bypass"}</dd><dt>Confidence</dt><dd>{route ? `${Math.round(route.confidence * 100)}%` : "—"}</dd><dt>Route time</dt><dd>{route?.latency_ms == null ? "—" : `${Math.round(route.latency_ms)} ms`}</dd><dt>Generation</dt><dd>{metrics ? `${Math.round(metrics.generation_latency_ms)} ms` : "—"}</dd></dl></div>
+        <div className="telemetry-card"><dl><dt>Route</dt><dd>{route ? modeLabel(route.expert) : "Waiting for response"}</dd><dt>Router</dt><dd>{route ? route.router_model ?? "Manual selection" : "Select Auto or a specialist"}</dd><dt>Confidence</dt><dd>{route?.confidence == null ? "Not recorded" : `${Math.round(route.confidence * 100)}%`}</dd><dt>Route time</dt><dd>{route?.latency_ms == null ? "Not recorded" : `${Math.round(route.latency_ms)} ms`}</dd><dt>Generation</dt><dd>{metrics?.generation_latency_ms == null ? "Not recorded" : `${Math.round(metrics.generation_latency_ms)} ms`}</dd><dt>Expert model</dt><dd>{route?.expert_model_label ?? metrics?.model ?? "Not loaded"}</dd><dt>Available routes</dt><dd>Auto · Conversation · Math &amp; Science · Coding</dd></dl></div>
       </section>
       <section className="panel-section"><h3>System telemetry</h3>
         <Meter label="CPU" value={system?.cpu_percent} detail={formatPercent(system?.cpu_percent)} />
@@ -30,4 +30,3 @@ export function TelemetryDrawer({ open, system, route, metrics, onClose }: Props
     </aside>
   </>;
 }
-
