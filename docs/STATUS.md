@@ -1,7 +1,7 @@
 # Status
 
 Current phase: 10/10 local v1 complete; Docker/AWS deployment intentionally not started.
-Last verified commit: 6c99169
+Last verified code commit: 6c99169
 
 Working: FastAPI/Ollama gateway, exact four-model routing, SQLite sessions, streaming, validation, telemetry, and polished React UI.
 Verified: 17 fast backend tests, 5 live-model tests, frontend typecheck/build/2 tests, 6/6 classroom prompts, browser smoke, and offline loopback acceptance.
