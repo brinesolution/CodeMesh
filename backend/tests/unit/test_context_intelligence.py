@@ -133,3 +133,26 @@ async def test_empty_router_analysis_still_identifies_project_topic() -> None:
 
     assert fallback is False
     assert analysis.topic == "Projectile Motion Calculator"
+
+
+async def test_historical_request_requires_prior_context_and_summary() -> None:
+    settings = Settings()
+    registry = build_model_registry(settings)
+    gateway = IntelligenceGateway()
+    gateway.outputs[0] = (
+        '{"topic":null,"requires_history":false,"requires_summary":false,'
+        '"reference_detected":false,"relevant_memory_ids":[],"recent_turns_needed":0,'
+        '"memory_worthy":false}'
+    )
+    intelligence = ContextIntelligence(gateway, registry, settings)
+
+    analysis, _, _, fallback = await intelligence.analyze(
+        "What was the historical language and gravity change?",
+        SessionContextState(summary="A prior project summary."),
+        [],
+    )
+
+    assert fallback is False
+    assert analysis.reference_detected is True
+    assert analysis.requires_history is True
+    assert analysis.requires_summary is True

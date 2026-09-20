@@ -195,7 +195,7 @@ def _normalize_analysis(
         or bool(analysis.relevant_memory_ids)
         or reference_detected
     )
-    requires_summary = analysis.requires_summary and bool(state.summary)
+    requires_summary = (analysis.requires_summary or reference_detected) and bool(state.summary)
     recent_turns_needed = min(
         settings.context_turns,
         analysis.recent_turns_needed
@@ -222,7 +222,7 @@ def _has_context_reference(message: str) -> bool:
     return bool(
         re.search(
             r"\b(previous|earlier|before|same|that|those|it|continue|again|accordingly|"
-            r"discussed|decided|go back|all three|this)\b",
+            r"discussed|decided|go back|all three|this|historical|history)\b",
             message.lower(),
         )
     )

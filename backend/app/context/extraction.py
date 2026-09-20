@@ -1,6 +1,7 @@
 """Small deterministic memory safety net for weak structured Router output."""
 
 import re
+from collections.abc import Iterable
 
 from app.context.schemas import MemoryChange, MemoryUpdate
 
@@ -214,6 +215,28 @@ def extract_durable_memory(
         current_goal=current_goal,
         memory_worthy=bool(changes or current_goal),
     )
+
+
+def historical_project_changes(messages: Iterable[str]) -> list[str]:
+    """Return compact change history derived from user-visible project messages."""
+
+    languages: list[str] = []
+    gravities: list[str] = []
+    for message in messages:
+        lowered = message.lower()
+        language = _implementation_language(lowered)
+        if language and (not languages or languages[-1] != language):
+            languages.append(language)
+        gravity = _gravity_value(lowered)
+        if gravity and (not gravities or gravities[-1] != gravity):
+            gravities.append(gravity)
+
+    changes: list[str] = []
+    if len(languages) > 1:
+        changes.append(f"Language history: {' -> '.join(languages)}.")
+    if len(gravities) > 1:
+        changes.append(f"Gravity history: {' -> '.join(gravities)} m/s².")
+    return changes
 
 
 def _is_projectile_calculator(message: str) -> bool:

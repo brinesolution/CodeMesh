@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.config import Settings
-from app.context.extraction import extract_durable_memory
+from app.context.extraction import extract_durable_memory, historical_project_changes
 from app.context.schemas import (
     ContextAnalysis,
     MemoryChange,
@@ -135,6 +135,18 @@ class ContextMemoryService:
     ) -> SessionContextState:
         state = self.get(session_id)
         summary = update.summary.strip()[: self.settings.summary_max_chars]
+        history = historical_project_changes(
+            message.content
+            for message in self.repository.all_messages(session_id)
+            if message.role == "user"
+        )
+        if history:
+            base_summary = summary.split("\nHISTORICAL PROJECT CHANGES:", 1)[0].rstrip()
+            history_section = "\nHISTORICAL PROJECT CHANGES:\n" + "\n".join(
+                f"- {item}" for item in history
+            )
+            available = max(0, self.settings.summary_max_chars - len(history_section))
+            summary = f"{base_summary[:available].rstrip()}{history_section}".strip()
         updated = state.model_copy(
             update={
                 "summary": summary,

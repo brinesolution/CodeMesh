@@ -182,6 +182,44 @@ def test_long_conversation_keeps_raw_history_and_bounds_derived_context(tmp_path
     assert len(service.get(session_id).summary) < settings.summary_max_chars
 
 
+def test_summary_preserves_historical_language_and_gravity_changes(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'history-summary.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    repository.add_message(
+        session_id,
+        role="user",
+        content="Implement the projectile-motion calculator in Python.",
+    )
+    repository.add_message(
+        session_id,
+        role="user",
+        content="Do not use Python. Use Java 21 as the final implementation language.",
+    )
+    repository.add_message(
+        session_id,
+        role="user",
+        content="Use gravitational acceleration as 9.81 m/s².",
+    )
+    repository.add_message(
+        session_id,
+        role="user",
+        content="Change the gravity constant to 9.80665 m/s² instead of 9.81.",
+    )
+    service = ContextMemoryService(repository, settings)
+
+    service.apply_summary_update(
+        session_id,
+        SummaryUpdate(summary="The current implementation uses Java 21."),
+        through_message_id=4,
+        router_model="qwen3:0.6b",
+    )
+
+    summary = service.get(session_id).summary
+    assert "Language history: Python -> Java 21." in summary
+    assert "Gravity history: 9.81 -> 9.80665 m/s²." in summary
+
+
 def test_specialist_context_includes_selected_memory_once_and_current_request_once(
     tmp_path,
 ) -> None:
