@@ -1,13 +1,15 @@
 # Status
 
-Current phase: 13/13 local v1 + Context Mesh complete; Docker/AWS deployment intentionally not started.
-Last verified code commit: 99dbdd2 (Context Mesh session visualizer).
+Current phase: 14/14 repository cleanup and GitHub release preparation complete; local v1 and Context Mesh remain the working deliverable. Docker/AWS deployment is intentionally not started.
 
-Working: FastAPI/Ollama gateway, exact four-model routing, runtime model assignments, SQLite sessions, Router-driven context analysis, rolling summaries, bounded structured memory, historical change context, raw-history rebuild, streaming, validation, telemetry, fixed ChatGPT-like React shell, and KaTeX math rendering.
-Verified: 53 fast backend tests, 5 live-model tests, frontend typecheck/build/16 tests, 6/6 classroom prompts, 20/20 real-UI context stress prompts, 40 raw messages, bounded summary/memory, cross-specialist continuity, restart persistence, dynamic Models panel, assignment/reset flow, and fixed-shell checks at 1920x1080, 1366x768, 1024x768, and 390x844 with zero fresh-browser console errors.
-Context stress: evaluation passed; 20 exact user prompts, 20 assistant turns, 17 unique memory items, five unit-test tasks, active gravity 9.80665, historical Python → Java 21 and 9.81 → 9.80665 retained, and final JUnit implementation returned.
-Context Mesh: verified session-scoped `/api/v1/sessions/{session_id}/mesh`, safe semantic graph projection, exact latest package view, timeline, read-only SQLite mapping, current memory replacement history, deterministic React Flow graph, four-view overlay, search/filter/inspector, empty/error states, bounded long-chat grouping, and responsive mobile fallback.
-Phase 13 verification: 53 backend tests passed (5 live-model tests deselected by the fast suite), frontend typecheck/build/16 tests passed, real browser checks passed at 1920×1080, 1366×768, 1024×768, and 390×844; temporary overflow sessions were removed; browser console had 0 errors and 0 warnings after the React Flow attribution fix.
-Routing: 119/120 (99.17%); average route latency 2473.71 ms; measured fallback rate 22.5%.
-Performance: one live specialist sample: conversation 6771.90 ms, STEM 11449.75 ms, coding 9391.75 ms; routing/context 964.01–1334.98 ms; specialist generation 2574.76–7558.19 ms; RAM 10.71–10.85 GiB; VRAM 6.37–6.38 GiB; GPU 84–85%; model-switch 11.39–14.27 ms. Ollama kept the router resident and switched specialists locally.
-Next: later Docker/AWS phase only; local development deliverable is ready.
+Last verified: 2026-09-21. The local stack includes FastAPI/Ollama routing, runtime model assignments, SQLite sessions, Router-driven context intelligence, rolling summaries, bounded structured memory, historical context, raw-history rebuild, streaming, validation, telemetry, fixed responsive chat layout, KaTeX rendering, and Context Mesh.
+
+Verification baseline: 53 fast backend tests passed (5 live tests remain separately selectable), backend Ruff passed, frontend typecheck/build passed, and 16 frontend tests passed. The existing local-v1 evidence remains 6/6 classroom prompts, 20/20 context-stress prompts, persistence/restart recovery, four viewport shell checks, model assignment/reset, and fresh-browser console checks with zero errors.
+
+Context Mesh is session-scoped and bounded. It exposes graph, operational context-package inputs, timeline, and read-only storage mappings; specialist system prompts, hidden reasoning, and other sessions are not returned.
+
+Repository release checks: one root `.env.example`, ignored real SQLite data, environments, logs, browser artifacts, and model files; duplicate/internal release files removed from the working tree; locked `uv`/npm installs; production and development npm audits report zero vulnerabilities; no credential values found in the tracked source/history review.
+
+Performance evidence from local v1 remains documented in `docs/TEST_MATRIX.md`: router-plus-specialist operation, measured route/generation/model-switch latency, RAM/VRAM, and GPU utilization on the target Windows machine.
+
+Next: later Docker/AWS work only. Keep `docs/DEMO.md`, `docs/TEST_MATRIX.md`, and `docs/ARCHITECTURE.md` as the concise recovery and handoff references.

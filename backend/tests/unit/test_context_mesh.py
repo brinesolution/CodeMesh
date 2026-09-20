@@ -90,6 +90,7 @@ def test_mesh_projection_is_current_session_scoped_and_safe(tmp_path) -> None:
     )
     assert mesh.latest_context_package.summary_through_message_id == first.id
     assert mesh.latest_context_package.current_goal == "Add JUnit tests"
+    assert "system_prompt" not in mesh.latest_context_package.model_dump()
     assert mesh.storage.current_session_id == current.id
     assert {table.name for table in mesh.storage.tables} >= {
         "sessions",

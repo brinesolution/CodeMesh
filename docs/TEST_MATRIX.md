@@ -13,3 +13,6 @@
 | Context and memory | `uv run python evaluation/run_context_stress.py --session-id <real-ui-session>` | passing: 20/20 exact prompts, 40 raw messages, historical continuity, goal/task retention, bounded summary, unique memory IDs, final implementation |
 | Long conversation and recovery | 40-turn bounded unit test; 30-turn live session; backend restart; rebuild endpoint | passing: raw messages preserved, summary boundary persisted, context survived restart, rebuild rederived context |
 | Router model switch | live `PUT /api/v1/models/router`, Auto chat, restore defaults | passing: route and context tasks both used the assigned `qwen3:1.7b`; defaults restored to `qwen3:0.6b` |
+| Context Mesh privacy | backend projection test + frontend Context view test | passing: system prompts are excluded; projection remains session-scoped, bounded, and read-only |
+| Dependency/security review | `npm audit --audit-level=moderate`; `npm ci --dry-run --ignore-scripts`; `uv lock --check` | passing: 0 npm vulnerabilities, locked installs valid |
+| Repository hygiene | `git check-ignore`, tracked-file/path scan, secret/history review | passing: local data/artifacts excluded; no credential values found |

@@ -93,7 +93,6 @@ export interface MeshContextPackage {
   response_message_id: number | null;
   approx_context_size: number;
   context_analysis: Record<string, unknown>;
-  system_prompt: string;
   created_at: string;
 }
 

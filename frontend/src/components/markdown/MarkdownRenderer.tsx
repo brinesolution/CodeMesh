@@ -62,7 +62,7 @@ export function MarkdownRenderer({ content }: Props) {
           const value = String(children).replace(/\n$/, "");
           return match ? <CodeBlock language={match[1]} value={value} /> : <code className={className} {...props}>{children}</code>;
         },
-        a({ children, ...props }) { return <a {...props} target="_blank" rel="noreferrer">{children}</a>; },
+        a({ children, ...props }) { return <a {...props} target="_blank" rel="noreferrer noopener">{children}</a>; },
       }}
     >
       {normalizeMathDelimiters(content)}

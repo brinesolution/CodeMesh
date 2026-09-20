@@ -227,7 +227,6 @@ class ContextMeshService:
             response_message_id=run.response_message_id,
             approx_context_size=run.approx_context_size,
             context_analysis=metadata,
-            system_prompt=expert.system_prompt,
             created_at=run.created_at,
         )
 

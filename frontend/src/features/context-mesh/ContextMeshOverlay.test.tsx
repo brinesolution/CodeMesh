@@ -15,7 +15,7 @@ const mesh: ContextMeshData = {
     { id: 12, role: "user", content_preview: "Use Java 21.", content_length: 13, created_at: "2026-09-20T10:08:00Z", route: null, model: null, route_confidence: null, is_recent: true, is_current_prompt: false },
     { id: 13, role: "assistant", content_preview: "Java 21 is selected.", content_length: 21, created_at: "2026-09-20T10:09:00Z", route: "coding", model: "qwen2.5-coder:3b", route_confidence: 0.9, is_recent: true, is_current_prompt: false },
   ],
-  latest_context_package: { id: 1, expert: "coding", expert_name: "Coding Expert", model: "qwen2.5-coder:3b", router_model: "qwen3:0.6b", summary_included: true, summary_text: "The user is building a projectile calculator.", summary_through_message_id: 12, memory_ids: ["language"], memory_items: [{ id: "language", text: "Language = Java 21", source_message_id: 8, updated_at: "2026-09-20T10:08:00Z", topic: "calculator", status: "current" }], current_goal: "Add JUnit tests", recent_message_ids: [12], recent_messages: [{ id: 12, role: "user", content: "Use Java 21.", created_at: "2026-09-20T10:08:00Z" }], current_message_id: 12, current_prompt: "Use Java 21.", response_message_id: 13, approx_context_size: 321, context_analysis: { topic: "calculator", requires_history: true, requires_summary: true, reference_detected: false, recent_turns_needed: 1 }, system_prompt: "You are the CodeMesh Coding Expert.", created_at: "2026-09-20T10:09:00Z" },
+  latest_context_package: { id: 1, expert: "coding", expert_name: "Coding Expert", model: "qwen2.5-coder:3b", router_model: "qwen3:0.6b", summary_included: true, summary_text: "The user is building a projectile calculator.", summary_through_message_id: 12, memory_ids: ["language"], memory_items: [{ id: "language", text: "Language = Java 21", source_message_id: 8, updated_at: "2026-09-20T10:08:00Z", topic: "calculator", status: "current" }], current_goal: "Add JUnit tests", recent_message_ids: [12], recent_messages: [{ id: 12, role: "user", content: "Use Java 21.", created_at: "2026-09-20T10:08:00Z" }], current_message_id: 12, current_prompt: "Use Java 21.", response_message_id: 13, approx_context_size: 321, context_analysis: { topic: "calculator", requires_history: true, requires_summary: true, reference_detected: false, recent_turns_needed: 1 }, created_at: "2026-09-20T10:09:00Z" },
   timeline: [],
   storage: { database: "SQLite", database_name: "codemesh.db", current_session_id: "session-1", tables: [] },
 };
@@ -28,7 +28,8 @@ describe("ContextMeshOverlay", () => {
     expect(screen.getByRole("heading", { name: "Context Mesh" })).toBeInTheDocument();
     expect(screen.getByText("Projectile Calculator")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Context" }));
-    expect(screen.getByText("SPECIALIST SYSTEM PROMPT")).toBeInTheDocument();
+    expect(screen.queryByText("SPECIALIST SYSTEM PROMPT")).not.toBeInTheDocument();
+    expect(screen.getByText("PACKAGE INPUTS")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
     expect(screen.getByRole("heading", { name: "Context timeline" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Storage" }));

@@ -94,7 +94,6 @@ class MeshContextPackage(BaseModel):
     response_message_id: int | None = None
     approx_context_size: int = 0
     context_analysis: dict[str, Any] = Field(default_factory=dict)
-    system_prompt: str = ""
     created_at: datetime
 
 
