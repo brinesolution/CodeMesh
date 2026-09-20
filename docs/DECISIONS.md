@@ -19,3 +19,4 @@
 - 2026-09-20: Phase 13 browser QA used the Playwright CLI fallback because the native browser connector remained unavailable; real checks covered fixed-shell scroll independence, overflowed sidebar history, the fixed Connected/Mesh footer, exact context-package rendering, all four mesh views, node inspection, and mobile overlay behavior.
 - 2026-09-21: Phase 14 removes specialist system prompts from the public Context Mesh projection and UI; context inspection remains bounded and operational without exposing internal instructions.
 - 2026-09-21: Phase 14 upgrades `react-syntax-highlighter` and Vitest to audited compatible releases, then keeps the single-worker test setting using the supported Vitest 4 flags.
+- 2026-09-21: With no configured remote or collaborator branch, rewrite local Git history to remove the master directive, agent note, and duplicate backend env template before public upload; the controlling directive remains ignored locally for development.
