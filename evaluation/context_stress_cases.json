@@ -1,0 +1,102 @@
+[
+  {
+    "id": "prompt-01",
+    "prompt": "I am building a projectile-motion calculator. Use gravitational acceleration as 9.81 m/s². The user will enter initial velocity and launch angle. Calculate maximum height, horizontal range, and total flight time. Explain the formulas.",
+    "checkpoint_after": 3
+  },
+  {
+    "id": "prompt-02",
+    "prompt": "Use an initial velocity of 30 m/s and launch angle of 40°. Calculate maximum height, horizontal range, and total flight time.",
+    "checkpoint_after": 3
+  },
+  {
+    "id": "prompt-03",
+    "prompt": "Implement the projectile-motion calculator in Python. Use functions to organize it. Validate that the initial velocity is positive and the launch angle is between 0 and 90 degrees. Format all results to two decimal places.",
+    "checkpoint_after": 3
+  },
+  {
+    "id": "prompt-04",
+    "prompt": "Do not use Python. Use Java 21 as the final implementation language.",
+    "checkpoint_after": 6
+  },
+  {
+    "id": "prompt-05",
+    "prompt": "Rewrite the previous implementation accordingly. Retain the projectile calculations and validation.",
+    "checkpoint_after": 6
+  },
+  {
+    "id": "prompt-06",
+    "prompt": "The implementation must be fully offline. It must not use external APIs or third-party math libraries. Keep it readable for a first-year programming student.",
+    "checkpoint_after": 6
+  },
+  {
+    "id": "prompt-07",
+    "prompt": "Why is the sky blue? Explain it simply.",
+    "checkpoint_after": 10
+  },
+  {
+    "id": "prompt-08",
+    "prompt": "Give me a short explanation of cloud computing.",
+    "checkpoint_after": 10
+  },
+  {
+    "id": "prompt-09",
+    "prompt": "Write an SQL query to find students with a CGPA greater than 8.5.",
+    "checkpoint_after": 10
+  },
+  {
+    "id": "prompt-10",
+    "prompt": "Go back to the projectile calculator. What language, gravity constant, and outputs did we settle on?",
+    "checkpoint_after": 10
+  },
+  {
+    "id": "prompt-11",
+    "prompt": "Change the gravity constant to 9.80665 m/s² instead of 9.81.",
+    "checkpoint_after": 11
+  },
+  {
+    "id": "prompt-12",
+    "prompt": "Update the code to use that new gravity constant.",
+    "checkpoint_after": 13
+  },
+  {
+    "id": "prompt-13",
+    "prompt": "The goal now is to add unit tests. Test 0°, 45°, negative velocity, angle above 90°, and a normal 30 m/s at 40° case.",
+    "checkpoint_after": 13
+  },
+  {
+    "id": "prompt-14",
+    "prompt": "Explain what an API is in one paragraph.",
+    "checkpoint_after": 17
+  },
+  {
+    "id": "prompt-15",
+    "prompt": "What were we about to work on before APIs?",
+    "checkpoint_after": 17
+  },
+  {
+    "id": "prompt-16",
+    "prompt": "Verify the range for 30 m/s at 40° using the current gravity constant.",
+    "checkpoint_after": 17
+  },
+  {
+    "id": "prompt-17",
+    "prompt": "Write the JUnit tests we planned using the expected value.",
+    "checkpoint_after": 17
+  },
+  {
+    "id": "prompt-18",
+    "prompt": "Summarize the final specification.",
+    "checkpoint_after": 20
+  },
+  {
+    "id": "prompt-19",
+    "prompt": "What was the historical language and gravity change?",
+    "checkpoint_after": 20
+  },
+  {
+    "id": "prompt-20",
+    "prompt": "Implement the remaining part from our decisions.",
+    "checkpoint_after": 20
+  }
+]
