@@ -1,9 +1,9 @@
 | Area | Command/check | Status |
 |---|---|---|
-| Backend unit/integration/failure | `.\scripts\test.ps1` | passing: 47 passed, 5 live deselected |
+| Backend unit/integration/failure | `.\scripts\test.ps1` | passing: 53 passed, 5 live deselected |
 | Backend lint | `uv run ruff check app tests` | passing |
 | Frontend typecheck/build | `npm run typecheck; npm run build` | passing |
-| Frontend tests | `npm test` | passing: 12 tests |
+| Frontend tests | `npm test` | passing: 16 tests |
 | Model configuration | `/api/v1/models`; Models tab; assignment and reset flow | passing: 14 live Ollama models discovered; all four role selectors updated; defaults restored to exact assignments |
 | Live models | `scripts/verify-models.ps1`; `uv run pytest -m live -q` | passing: 4 installed, 5 live tests |
 | Classroom prompts | `docs/DEMO.md` prompts through `/api/v1/chat` | passing: 6/6, exact specialist models |
