@@ -186,6 +186,8 @@ class Orchestrator:
                 "summary_included": bool(context_package.summary),
                 "structured_memory_included": bool(context_package.relevant_memory),
                 "memory_item_count": len(context_package.relevant_memory),
+                "current_goal_included": bool(context_package.current_goal),
+                "historical_changes_included": bool(context_package.historical_changes),
                 "context_analysis": {
                     "topic": analysis.topic,
                     "requires_history": analysis.requires_history,

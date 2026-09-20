@@ -266,6 +266,53 @@ def test_specialist_context_includes_selected_memory_once_and_current_request_on
     assert all("Now implement it." not in content for content in contents[1:-1])
 
 
+def test_specialist_context_exposes_current_goal_and_historical_changes(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'history-package.db'}")
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    for content in (
+        "Implement the projectile-motion calculator in Python.",
+        "Do not use Python. Use Java 21 as the final implementation language.",
+        "Use gravitational acceleration as 9.81 m/s².",
+        "Change the gravity constant to 9.80665 m/s² instead of 9.81.",
+    ):
+        repository.add_message(session_id, role="user", content=content)
+    service = ContextMemoryService(repository, settings)
+    service.apply_memory_update(
+        session_id,
+        MemoryUpdate(
+            current_goal="Add unit tests for the projectile-motion calculator.",
+            memory_worthy=True,
+        ),
+        source_message_id=4,
+        router_model="qwen3:0.6b",
+        source_text="The current goal is to add unit tests.",
+    )
+
+    package = ContextManager(
+        repository,
+        settings.context_turns,
+        settings=settings,
+        memory_service=service,
+    ).build_specialist_context(
+        session_id,
+        5000,
+        "What was the historical language and gravity change?",
+        ContextAnalysis(
+            requires_history=True,
+            requires_summary=True,
+            reference_detected=True,
+            recent_turns_needed=2,
+        ),
+    )
+    messages = package.to_messages("SYSTEM")
+    contents = [message["content"] for message in messages]
+
+    assert any("CURRENT PROJECT GOAL" in content for content in contents)
+    assert any("Language history: Python -> Java 21." in content for content in contents)
+    assert any("Gravity history: 9.81 -> 9.80665 m/s²." in content for content in contents)
+
+
 def test_substantive_message_is_retained_when_router_returns_empty_update(tmp_path) -> None:
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'router-empty.db'}")
     repository = ChatRepository(settings)

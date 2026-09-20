@@ -109,6 +109,8 @@ class SpecialistContext(BaseModel):
     summary: str = ""
     relevant_memory: list[MemoryItem] = Field(default_factory=list)
     recent_messages: list[dict[str, str]] = Field(default_factory=list)
+    current_goal: str | None = None
+    historical_changes: list[str] = Field(default_factory=list)
     current_message: str
 
     def to_messages(self, system_prompt: str) -> list[dict[str, str]]:
@@ -121,5 +123,23 @@ class SpecialistContext(BaseModel):
                 {"role": "system", "content": f"RELEVANT SHARED MEMORY:\n{memory_text}"}
             )
         messages.extend(self.recent_messages)
+        if self.current_goal:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"CURRENT PROJECT GOAL:\n{self.current_goal}",
+                }
+            )
+        if self.historical_changes:
+            history = "\n".join(f"- {item}" for item in self.historical_changes)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "HISTORICAL PROJECT CHANGES:\n"
+                        f"{history}\nAnswer historical questions from this context."
+                    ),
+                }
+            )
         messages.append({"role": "user", "content": self.current_message})
         return messages

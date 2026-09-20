@@ -222,7 +222,7 @@ def _has_context_reference(message: str) -> bool:
     return bool(
         re.search(
             r"\b(previous|earlier|before|same|that|those|it|continue|again|accordingly|"
-            r"discussed|decided|go back|all three|this|historical|history)\b",
+            r"discussed|decided|go back|all three|this|historical|history|decisions|remaining)\b",
             message.lower(),
         )
     )

@@ -1,4 +1,5 @@
 from app.config import Settings
+from app.context.extraction import historical_project_changes
 from app.context.schemas import ContextAnalysis, SpecialistContext
 from app.context.service import ContextMemoryService
 from app.persistence.repository import ChatRepository
@@ -66,9 +67,18 @@ class ContextManager:
                 break
             recent.append({"role": message.role, "content": message.content})
             recent_used += len(message.content)
+        historical_changes = []
+        if analysis.reference_detected:
+            historical_changes = historical_project_changes(
+                message.content
+                for message in self.repository.all_messages(session_id)
+                if message.role == "user"
+            )
         return SpecialistContext(
             summary=summary,
             relevant_memory=bounded_memory,
             recent_messages=recent,
+            current_goal=state.memory.current_goal if analysis.requires_history else None,
+            historical_changes=historical_changes,
             current_message=current,
         )
