@@ -10,6 +10,8 @@ Context Mesh is session-scoped and bounded. It exposes graph, operational contex
 
 Repository release checks: one root `.env.example`, ignored real SQLite data, environments, logs, browser artifacts, and model files; duplicate/internal release files removed from the working tree; locked `uv`/npm installs; production and development npm audits report zero vulnerabilities; no credential values found in the tracked source/history review.
 
+Fresh-clone gate: a tracked-only detached worktree bootstrapped with `scripts/bootstrap.ps1`, initialized a clean SQLite database, passed failure-state checks, and passed the complete 53-backend/16-frontend test and build suite before being removed.
+
 Performance evidence from local v1 remains documented in `docs/TEST_MATRIX.md`: router-plus-specialist operation, measured route/generation/model-switch latency, RAM/VRAM, and GPU utilization on the target Windows machine.
 
 Next: later Docker/AWS work only. Keep `docs/DEMO.md`, `docs/TEST_MATRIX.md`, and `docs/ARCHITECTURE.md` as the concise recovery and handoff references.
