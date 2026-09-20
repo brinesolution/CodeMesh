@@ -172,6 +172,7 @@ class Orchestrator:
             context_package = self.context.build_specialist_context(
                 session_id, expert.context_char_limit, message, analysis
             )
+            context_state_snapshot = self.context_memory.get(session_id)
             prompt_messages = context_package.to_messages(expert.system_prompt)
             context_metadata = {
                 "session_id": session_id,
@@ -212,7 +213,7 @@ class Orchestrator:
             answer = "".join(parts).strip()
             validation = self._validate(route, message, answer)
             generation_latency = generation_timer.elapsed_ms()
-            self.repository.add_message(
+            assistant_message = self.repository.add_message(
                 session_id,
                 role="assistant",
                 content=answer,
@@ -225,6 +226,33 @@ class Orchestrator:
             )
             maintenance = await self._maintain_context(
                 session_id, message, answer, user_message.id
+            )
+            context_run = self.repository.add_context_run(
+                session_id,
+                current_message_id=user_message.id,
+                response_message_id=assistant_message.id,
+                expert=route.expert.value,
+                model=expert_model.model,
+                router_model=context_model,
+                summary_included=bool(context_package.summary),
+                memory_ids=[item.id for item in context_package.relevant_memory],
+                recent_message_ids=context_package.recent_message_ids,
+                approx_context_size=sum(len(item["content"]) for item in prompt_messages),
+                context_analysis={
+                    **context_metadata,
+                    "current_goal_included": bool(context_package.current_goal),
+                    "historical_changes_included": bool(context_package.historical_changes),
+                    "summary_updated": maintenance["summary_update_status"] == "updated",
+                    "summary_text_snapshot": context_package.summary,
+                    "summary_through_message_id_snapshot": (
+                        context_state_snapshot.summary_through_message_id
+                    ),
+                    "memory_items_snapshot": [
+                        item.model_dump(mode="json")
+                        for item in context_package.relevant_memory
+                    ],
+                    "current_goal_snapshot": context_package.current_goal,
+                },
             )
             yield {"type": "validation", "data": validation.__dict__}
             health = await self.gateway.health()
@@ -241,6 +269,7 @@ class Orchestrator:
                 "model": expert_model.model,
                 "context": {
                     **context_metadata,
+                    "context_run_id": context_run.id if context_run else None,
                     "memory_update_status": maintenance["memory_update_status"],
                     "summary_update_status": maintenance["summary_update_status"],
                     "memory_model": maintenance["memory_model"],

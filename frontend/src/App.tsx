@@ -6,6 +6,8 @@ import { Sidebar } from "./components/app-shell/Sidebar";
 import { Header } from "./components/app-shell/Header";
 import { ChatView } from "./components/chat/ChatView";
 import { TelemetryDrawer } from "./components/telemetry/TelemetryDrawer";
+import { ContextMeshOverlay } from "./features/context-mesh/ContextMeshOverlay";
+import { useContextMesh } from "./features/context-mesh/hooks/useContextMesh";
 import { modeLabel } from "./lib/format";
 import { latestAssistantMessage, metricsDataFromMessage, routeDataFromMessage, validationDataFromMessage } from "./lib/routing";
 
@@ -28,6 +30,8 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [telemetryOpen, setTelemetryOpen] = useState(false);
+  const [contextMeshOpen, setContextMeshOpen] = useState(false);
+  const [contextMeshRefreshKey, setContextMeshRefreshKey] = useState(0);
   const [online, setOnline] = useState<boolean | null>(null);
   const [system, setSystem] = useState<SystemSnapshot | null>(null);
   const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration | null>(null);
@@ -44,6 +48,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastPromptRef = useRef<{ text: string; mode: Mode } | null>(null);
+  const contextMesh = useContextMesh(activeSessionId, contextMeshOpen, contextMeshRefreshKey);
 
   const restoreSessionState = (detail: SessionDetail) => {
     const assistant = latestAssistantMessage(detail.messages);
@@ -163,7 +168,7 @@ export default function App() {
     } catch { setError("That conversation could not be loaded."); }
   };
 
-  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setSessionContext(null); setMessages([]); setInput(""); setMode("auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); };
+  const newChat = () => { abortRef.current?.abort(); setActiveSessionId(null); setSessionContext(null); setMessages([]); setInput(""); setMode("auto"); setError(null); setRoute(undefined); setValidation(undefined); setMetrics(undefined); setSidebarOpen(false); setContextMeshOpen(false); };
 
   const deleteSession = async (id: string) => {
     try { await api.deleteSession(id); const remaining = await refreshSessions(); if (id === activeSessionId) { if (remaining[0]) await selectSession(remaining[0].id); else newChat(); } } catch { setError("The conversation could not be deleted."); }
@@ -178,7 +183,7 @@ export default function App() {
     if (event.type === "validation") setValidation(event.data as unknown as ValidationData);
     if (event.type === "metrics") setMetrics(event.data as unknown as MetricsData);
     if (event.type === "error") { const data = event.data as { code?: string; message?: string }; setError(errorMessage(data.code, data.message ?? "The local request failed.")); setIsStreaming(false); }
-    if (event.type === "done") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, transient: false } : message));
+    if (event.type === "done") { setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, transient: false } : message)); setContextMeshRefreshKey((current) => current + 1); }
   };
 
   const sendMessage = async (text = input, selectedMode = mode, displayUser = true) => {
@@ -204,9 +209,10 @@ export default function App() {
   const promptCard = (prompt: string, promptMode: Mode) => { setMode(promptMode); void sendMessage(prompt, promptMode); };
 
   return <div className="app-shell">
-    <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} />
+    <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} onContextMesh={() => setContextMeshOpen(true)} meshMemoryCount={contextMesh.data ? contextMesh.data.memory.facts.length + contextMesh.data.memory.decisions.length + contextMesh.data.memory.constraints.length + contextMesh.data.memory.preferences.length + contextMesh.data.memory.open_tasks.length + (contextMesh.data.memory.current_goal ? 1 : 0) : sessionContext ? sessionContext.memory.facts.length + sessionContext.memory.decisions.length + sessionContext.memory.constraints.length + sessionContext.memory.preferences.length + sessionContext.memory.open_tasks.length + (sessionContext.memory.current_goal ? 1 : 0) : undefined} meshRecentCount={contextMesh.data?.recent_context.count ?? (sessionContext ? sessionContext.recent_context_turns * 2 : undefined)} />
     {sidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
     <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} routerModel={modelConfiguration?.assignments.router ?? null} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
     <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} sessionId={activeSessionId} sessionContext={sessionContext} contextError={contextError} contextLoading={contextLoading} onRefreshContext={() => void refreshContext()} onClose={() => setTelemetryOpen(false)} />
+    {contextMeshOpen && <ContextMeshOverlay data={contextMesh.data} loading={contextMesh.loading} error={contextMesh.error} onClose={() => setContextMeshOpen(false)} onRetry={() => void contextMesh.refresh()} />}
   </div>;
 }

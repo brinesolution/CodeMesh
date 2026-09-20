@@ -61,11 +61,13 @@ class ContextManager:
             if recent_messages[-1].content.strip() == current:
                 recent_messages = recent_messages[:-1]
         recent = []
+        recent_message_ids = []
         recent_used = 0
         for message in recent_messages:
             if recent_used + len(message.content) > remaining:
                 break
             recent.append({"role": message.role, "content": message.content})
+            recent_message_ids.append(message.id)
             recent_used += len(message.content)
         historical_changes = []
         if analysis.reference_detected:
@@ -78,6 +80,7 @@ class ContextManager:
             summary=summary,
             relevant_memory=bounded_memory,
             recent_messages=recent,
+            recent_message_ids=recent_message_ids,
             current_goal=state.memory.current_goal if analysis.requires_history else None,
             historical_changes=historical_changes,
             current_message=current,

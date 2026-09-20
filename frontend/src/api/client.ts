@@ -1,4 +1,5 @@
 import type { Mode, ModelConfiguration, ModelRole, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot } from "./types";
+import { getContextMesh } from "../features/context-mesh/api/contextMeshApi";
 import { parseNdjsonChunk } from "./stream";
 
 const API_BASE = (import.meta.env.VITE_CODEMESH_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -39,6 +40,7 @@ export const api = {
     }),
   resetModels: () => request<ModelConfiguration>("/models/reset", { method: "POST" }),
   getSessionContext: (id: string) => request<SessionContext>(`/sessions/${id}/context`),
+  getContextMesh,
 };
 
 export async function streamChat(

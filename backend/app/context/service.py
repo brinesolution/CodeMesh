@@ -2,6 +2,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from app.config import Settings
 from app.context.extraction import extract_durable_memory, historical_project_changes
@@ -21,6 +22,15 @@ from app.persistence.tables import ChatMessage
 class SummaryBatch:
     messages: list[ChatMessage]
     through_message_id: int
+
+
+@dataclass(frozen=True)
+class MemoryEventData:
+    memory_id: str
+    category: str
+    event_type: str
+    old_value: str | None
+    new_value: str | None
 
 
 class ContextMemoryService:
@@ -107,8 +117,11 @@ class ContextMemoryService:
             return state
 
         memory = state.memory.model_copy(deep=True)
+        events: list[MemoryEventData] = []
         for change in update.changes:
-            self._apply_change(memory, change, source_message_id)
+            event = self._apply_change(memory, change, source_message_id)
+            if event is not None:
+                events.append(event)
         goal = deterministic.current_goal
         if not goal and update.current_goal and self._has_explicit_goal_signal(source_text):
             goal = update.current_goal
@@ -123,7 +136,18 @@ class ContextMemoryService:
                 "version": state.version + 1,
             }
         )
-        return self._save(session_id, updated)
+        saved = self._save(session_id, updated)
+        for event in events:
+            self.repository.add_memory_event(
+                session_id,
+                memory_id=event.memory_id,
+                category=event.category,
+                event_type=event.event_type,
+                old_value=event.old_value,
+                new_value=event.new_value,
+                source_message_id=source_message_id,
+            )
+        return saved
 
     def apply_summary_update(
         self,
@@ -222,13 +246,29 @@ class ContextMemoryService:
 
     def _apply_change(
         self, memory: StructuredMemory, change: MemoryChange, source_message_id: int
-    ) -> None:
+    ) -> MemoryEventData | None:
         if change.category == "topics":
             if change.action == "remove":
+                if change.text not in memory.topics:
+                    return None
                 memory.topics = [topic for topic in memory.topics if topic != change.text]
+                return MemoryEventData(
+                    memory_id=f"topic:{self._normalize(change.text)}",
+                    category=change.category,
+                    event_type="removed",
+                    old_value=change.text,
+                    new_value=None,
+                )
             elif change.text not in memory.topics:
                 memory.topics.append(change.text[:120])
-            return
+                return MemoryEventData(
+                    memory_id=f"topic:{self._normalize(change.text)}",
+                    category=change.category,
+                    event_type="created",
+                    old_value=None,
+                    new_value=change.text[:120],
+                )
+            return None
 
         items = getattr(memory, change.category)
         target_id = change.id or change.replaces
@@ -237,16 +277,28 @@ class ContextMemoryService:
             None,
         )
         if change.action == "remove":
+            if target_index is None:
+                return None
+            old_item = items[target_index]
             setattr(memory, change.category, [item for item in items if item.id != target_id])
-            return
+            return MemoryEventData(
+                memory_id=old_item.id,
+                category=change.category,
+                event_type="removed",
+                old_value=old_item.text,
+                new_value=None,
+            )
         normalized = self._normalize(change.text)
         duplicate_index = next(
             (index for index, item in enumerate(items) if self._normalize(item.text) == normalized),
             None,
         )
+        if target_index is None and duplicate_index is not None:
+            return None
         if target_index is None and duplicate_index is None:
             target_index = self._find_conflict_index(change.category, items, change.text)
-        item_id = items[target_index].id if target_index is not None else change.id
+        old_item = items[target_index] if target_index is not None else None
+        item_id = old_item.id if old_item is not None else change.id or uuid4().hex
         item = {
             "id": item_id,
             "text": change.text.strip(),
@@ -256,8 +308,23 @@ class ContextMemoryService:
         }
         if target_index is not None:
             items[target_index] = type(items[target_index]).model_validate(item)
-        elif duplicate_index is None:
-            items.append(type(items[0]).model_validate(item) if items else _memory_item(item))
+            if self._normalize(old_item.text) == normalized:
+                return None
+            return MemoryEventData(
+                memory_id=item_id,
+                category=change.category,
+                event_type="updated",
+                old_value=old_item.text,
+                new_value=change.text.strip(),
+            )
+        items.append(type(items[0]).model_validate(item) if items else _memory_item(item))
+        return MemoryEventData(
+            memory_id=item_id,
+            category=change.category,
+            event_type="created",
+            old_value=None,
+            new_value=change.text.strip(),
+        )
 
     def _find_conflict_index(self, category: str, items: list, text: str) -> int | None:
         if category not in {"decisions", "constraints", "preferences"}:

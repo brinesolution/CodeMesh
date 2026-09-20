@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.config import Settings, get_settings
 from app.context.intelligence import ContextIntelligence
+from app.context_mesh.service import ContextMeshService
 from app.core.orchestrator import Orchestrator
 from app.logging_config import configure_logging
 from app.models.ollama_client import OllamaClient
@@ -29,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         router=router_service,
         context_intelligence=context_intelligence,
     )
+    context_mesh = ContextMeshService(repository, runtime_settings, models)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -44,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.context_memory = orchestrator.context_memory
     app.state.context_intelligence = context_intelligence
     app.state.orchestrator = orchestrator
+    app.state.context_mesh = context_mesh
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],

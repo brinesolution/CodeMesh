@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -63,3 +63,43 @@ class SessionContext(Base):
     last_memory_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_summary_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     session: Mapped[ChatSession] = relationship(back_populates="context")
+
+
+class ContextRun(Base):
+    """Safe, bounded metadata describing an assembled specialist context."""
+
+    __tablename__ = "context_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    current_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expert: Mapped[str] = mapped_column(String(30))
+    model: Mapped[str] = mapped_column(String(100))
+    router_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    summary_included: Mapped[bool] = mapped_column(Boolean, default=False)
+    memory_ids_json: Mapped[str] = mapped_column(Text, default="[]")
+    recent_message_ids_json: Mapped[str] = mapped_column(Text, default="[]")
+    approx_context_size: Mapped[int] = mapped_column(Integer, default=0)
+    context_analysis_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class MemoryEvent(Base):
+    """Minimal append-only history for meaningful structured-memory changes."""
+
+    __tablename__ = "memory_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    memory_id: Mapped[str] = mapped_column(String(64))
+    category: Mapped[str] = mapped_column(String(30))
+    event_type: Mapped[str] = mapped_column(String(20))
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

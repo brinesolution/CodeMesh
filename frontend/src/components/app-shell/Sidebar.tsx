@@ -1,6 +1,7 @@
 import { Activity, MessageSquare, Plus, Trash2, X } from "lucide-react";
 
 import type { SessionSummary } from "../../api/types";
+import { ContextMeshButton } from "../../features/context-mesh/ContextMeshButton";
 
 interface Props {
   sessions: SessionSummary[];
@@ -12,9 +13,12 @@ interface Props {
   onDelete: (id: string) => void;
   onClose: () => void;
   onTelemetry: () => void;
+  onContextMesh: () => void;
+  meshMemoryCount?: number;
+  meshRecentCount?: number;
 }
 
-export function Sidebar({ sessions, activeId, open, ollamaOnline, onNew, onSelect, onDelete, onClose, onTelemetry }: Props) {
+export function Sidebar({ sessions, activeId, open, ollamaOnline, onNew, onSelect, onDelete, onClose, onTelemetry, onContextMesh, meshMemoryCount, meshRecentCount }: Props) {
   return (
     <aside className={`sidebar ${open ? "open" : ""}`} aria-label="Conversations">
       <div className="sidebar-header">
@@ -50,6 +54,7 @@ export function Sidebar({ sessions, activeId, open, ollamaOnline, onNew, onSelec
           </div>
           <button type="button" className="icon-button sidebar-telemetry" onClick={onTelemetry} aria-label="Open system telemetry"><Activity size={17} /></button>
         </div>
+        <div className="sidebar-mesh-row"><ContextMeshButton onClick={onContextMesh} memoryCount={meshMemoryCount} recentCount={meshRecentCount} /></div>
       </div>
     </aside>
   );

@@ -1,0 +1,12 @@
+import { useState } from "react";
+
+import type { MeshStorage, StorageRow } from "../api/types";
+
+interface Props { storage: MeshStorage; }
+
+export function StorageExplorer({ storage }: Props) {
+  const [selected, setSelected] = useState<{ table: string; row: StorageRow } | null>(null);
+  return <section className="mesh-storage-view"><div className="mesh-view-heading"><div><span className="mesh-empty-kicker">Read-only persistence</span><h3>SQLite session mapping</h3><p>{storage.database} · {storage.database_name} · only the selected session is shown.</p></div><span className="mesh-count-pill">{storage.tables.length} tables</span></div><div className="mesh-storage-grid"><div className="mesh-table-list">{storage.tables.map((table) => <section className="mesh-table-card" key={table.name}><div className="mesh-table-head"><div><span>{table.name}</span><small>{table.row_count} row{table.row_count === 1 ? "" : "s"}</small></div><span className="mesh-table-columns">{table.columns.length} columns</span></div><div className="mesh-table-rows">{table.rows.length ? table.rows.map((row) => <button type="button" className="mesh-storage-row" key={`${table.name}-${row.id}`} onClick={() => setSelected({ table: table.name, row })}><span>#{row.id}</span><strong>{rowLabel(table.name, row)}</strong></button>) : <p className="mesh-empty-inline">No current-session rows.</p>}</div></section>)}</div>{selected && <aside className="mesh-storage-inspector"><div className="mesh-inspector-head"><div><span>{selected.table}</span><h4>Record #{selected.row.id}</h4></div><button type="button" className="icon-button" onClick={() => setSelected(null)} aria-label="Close storage record">×</button></div><dl>{Object.entries(selected.row.values).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd></div>)}</dl></aside>}</div></section>;
+}
+
+function rowLabel(table: string, row: StorageRow): string { const values = row.values; if (table === "messages") return `${String(values.role ?? "row")} · ${String(values.route ?? "unrouted")}`; if (table === "context_runs") return `${String(values.expert ?? "context")} · ${String(values.model ?? "model")}`; if (table === "session_context") return String(values.current_topic ?? "current context"); if (table === "memory_events") return `${String(values.event_type ?? "memory")} · ${String(values.category ?? "item")}`; return String(values.title ?? values.id ?? "record"); }

@@ -109,6 +109,7 @@ class SpecialistContext(BaseModel):
     summary: str = ""
     relevant_memory: list[MemoryItem] = Field(default_factory=list)
     recent_messages: list[dict[str, str]] = Field(default_factory=list)
+    recent_message_ids: list[int] = Field(default_factory=list)
     current_goal: str | None = None
     historical_changes: list[str] = Field(default_factory=list)
     current_message: str
