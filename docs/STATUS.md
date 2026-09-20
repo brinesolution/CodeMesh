@@ -8,7 +8,7 @@ Verification baseline: 53 fast backend tests passed (5 live tests remain separat
 
 Context Mesh is session-scoped and bounded. It exposes graph, operational context-package inputs, timeline, and read-only storage mappings; specialist system prompts, hidden reasoning, and other sessions are not returned.
 
-Repository release checks: one root `.env.example`, ignored real SQLite data, environments, logs, browser artifacts, and model files; duplicate/internal release files removed from the working tree; locked `uv`/npm installs; production and development npm audits report zero vulnerabilities; no credential values found in the tracked source/history review.
+Repository release checks: one root `.env.example`, ignored real SQLite data, environments, logs, browser artifacts, and model files; duplicate/internal release files removed from the working tree; locked `uv`/npm installs; production and development npm audits report zero vulnerabilities; no credential values found in the tracked source/history review; Windows `dev.ps1` launch and `stop.ps1` cleanup verified.
 
 Fresh-clone gate: a tracked-only detached worktree bootstrapped with `scripts/bootstrap.ps1`, initialized a clean SQLite database, passed failure-state checks, and passed the complete 53-backend/16-frontend test and build suite before being removed.
 

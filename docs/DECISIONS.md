@@ -20,3 +20,4 @@
 - 2026-09-21: Phase 14 removes specialist system prompts from the public Context Mesh projection and UI; context inspection remains bounded and operational without exposing internal instructions.
 - 2026-09-21: Phase 14 upgrades `react-syntax-highlighter` and Vitest to audited compatible releases, then keeps the single-worker test setting using the supported Vitest 4 flags.
 - 2026-09-21: With no configured remote or collaborator branch, rewrite local Git history to remove the master directive, agent note, and duplicate backend env template before public upload; the controlling directive remains ignored locally for development.
+- 2026-09-21: Resolve `uv`/npm executable paths explicitly in the Windows launcher and stop descendant processes plus verified CodeMesh port owners, so `dev.ps1` and `stop.ps1` behave predictably after detached launches.
