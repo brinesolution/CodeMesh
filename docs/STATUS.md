@@ -1,10 +1,12 @@
 # Status
 
-Current phase: 14/14 repository cleanup and GitHub release preparation complete; local v1 and Context Mesh remain the working deliverable. Docker/AWS deployment is intentionally not started.
+Current phase: Phases 1–10, Context Mesh/release hardening, and the Phase 15 controlled stress-testing pass are complete. Local v1 remains the working deliverable; Docker/AWS deployment is intentionally not started.
 
-Last verified: 2026-09-21. The local stack includes FastAPI/Ollama routing, runtime model assignments, SQLite sessions, Router-driven context intelligence, rolling summaries, bounded structured memory, historical context, raw-history rebuild, streaming, validation, telemetry, fixed responsive chat layout, KaTeX rendering, and Context Mesh.
+Last verified: 2026-09-22. The local stack includes FastAPI/Ollama routing, runtime model assignments, SQLite sessions, Router-driven context intelligence, rolling summaries, bounded structured memory, historical context, raw-history rebuild, streaming, validation, telemetry, fixed responsive chat layout, KaTeX rendering, and Context Mesh.
 
-Verification baseline: 53 fast backend tests passed (5 live tests remain separately selectable), backend Ruff passed, frontend typecheck/build passed, and 16 frontend tests passed. The existing local-v1 evidence remains 6/6 classroom prompts, 20/20 context-stress prompts, persistence/restart recovery, four viewport shell checks, model assignment/reset, and fresh-browser console checks with zero errors.
+Final verification: 77 fast backend tests passed (5 live tests passed separately), evaluation semantic checks passed 3/3, backend Ruff passed, frontend typecheck/build passed, and 19 frontend tests passed. Formal routing scored 120/120 (100.00%); the five-chat postfix pass completed 75/75 turns with 75/75 routes, 63/63 context-reference checks, zero errors, and all five final checks. The six classroom prompts passed 6/6 with exact specialist models. Browser checks covered 1920×1080, 1366×768, 1024×768, and 390×844 with fixed-shell scroll independence, Auto new-chat default, streaming Stop visibility, model configuration, mobile drawer, and zero console errors.
+
+The protected baseline evaluation/reports/five_chat_stress_test.json remains unchanged at SHA256 97FD3AFCEBCB1FE0A4138B4F654EBCF7ECE8BB5FACCE40BD3B07227C8FC396BD.
 
 Context Mesh is session-scoped and bounded. It exposes graph, operational context-package inputs, timeline, and read-only storage mappings; specialist system prompts, hidden reasoning, and other sessions are not returned.
 

@@ -85,30 +85,22 @@ class RouterService:
         guardrail_changed = guardrail_used and guardrail_route is not decision.expert
         obvious_stem_mismatch = (
             guardrail_route is ExpertRoute.STEM
-            and decision.expert is ExpertRoute.CONVERSATION
-            and any(
-                marker in message.lower()
-                for marker in (
-                    "calculate",
-                    "solve",
-                    "equation",
-                    "force",
-                    "mass",
-                    "acceleration",
-                    "physics",
-                    "circuit",
-                    "resistance",
-                    "probability",
-                    "projectile",
-                    "velocity",
-                    "square root",
-                )
-            )
+            and decision.expert is not ExpertRoute.STEM
+        )
+        obvious_conversation_mismatch = (
+            guardrail_route is ExpertRoute.CONVERSATION
+            and decision.expert is not ExpertRoute.CONVERSATION
+        )
+        obvious_coding_mismatch = (
+            guardrail_route is ExpertRoute.CODING
+            and decision.expert is not ExpertRoute.CODING
         )
         should_override = guardrail_changed and (
             decision.confidence < self.settings.router_confidence_threshold
             or (guardrail_route is ExpertRoute.CODING and has_artifact_intent(message))
             or obvious_stem_mismatch
+            or obvious_conversation_mismatch
+            or obvious_coding_mismatch
         )
         if should_override:
             decision = decision.model_copy(

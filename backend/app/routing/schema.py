@@ -85,17 +85,63 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "python mean",
         "snakes",
         "wildlife",
+        "friendlier tone",
+        "habit and routine",
+        "habit and a routine",
+        "manager and a mentor",
+        "think critically",
+        "feedback useful",
+        "which specialist handles",
+        "handles code artifacts",
         "general everyday analogy",
         "compare sql databases and spreadsheets",
         "explain the concept of an api to a beginner",
         "using a library analogy",
+        "library analogy",
         "without using technical jargon",
         "brainstorm names",
         "causes of procrastination",
         "make this sentence more concise",
+        "fully offline",
+        "external api",
+        "external apis",
+        "current goal",
     )
     if _contains_any(lowered, conversation_overrides):
         return ExpertRoute.CONVERSATION, True
+    historical_query = bool(
+        re.search(r"\b(?:what|which|list|summarize|recap)\b", lowered)
+        and re.search(r"\b(?:historically|historical|history|previous|old)\b", lowered)
+        and not re.search(r"\b(?:calculate|solve|derive|equation|formula)\b", lowered)
+    )
+    if historical_query:
+        return ExpertRoute.CONVERSATION, True
+    project_fact_signal = bool(
+        re.search(
+            r"\b(?:codename|budget|deadline|platforms?|concurrent\s+users|database|current\s+goal|"
+            r"mongodb|postgresql|sqlite|mysql|mariadb|redis|dynamodb)\b",
+            lowered,
+        )
+        and (
+            re.search(
+                r"\b(?:mongodb|postgresql|sqlite|mysql|mariadb|redis|dynamodb)\b",
+                lowered,
+            )
+            or re.search(r"\b(?:replace|change|target|remember|use)\b", lowered)
+        )
+        and not re.search(
+            r"\b(?:sql|schema|table|query|index|function|code|implementation|api)\b",
+            lowered,
+        )
+    )
+    if project_fact_signal:
+        return ExpertRoute.CONVERSATION, True
+    input_check_artifact = bool(
+        re.search(r"\b(?:add|implement|write|create|modify|include)\b", lowered)
+        and re.search(r"\binput\s+(?:check|validation)\b", lowered)
+    )
+    if input_check_artifact:
+        return ExpertRoute.CODING, True
 
     coding_artifacts = (
         "implement",
@@ -107,6 +153,7 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "write an sql",
         "write a bash script",
         "write unit tests",
+        "junit tests",
         "write a java",
         "write a python",
         "write a c++",
@@ -134,6 +181,7 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "spreadsheet formula",
         "fastapi",
         "unit tests",
+        "junit tests",
         "middleware",
     )
     if _contains_any(lowered, coding_artifacts):
@@ -157,7 +205,7 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "ohm",
         "resistance",
         "circuit",
-        "current",
+        "electric current",
         "newton",
         "energy",
         "integrate",
@@ -167,11 +215,17 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "wavelength",
         "frequency",
         "light",
+        "gravity",
+        "horizontal range",
         "seasons",
         "kinetic",
         "pressure",
         "gas",
         "compressed",
+        "requests per second",
+        "request rate",
+        "throughput",
+        "gb",
         "slope",
         "mitochondria",
         "element",
@@ -190,6 +244,7 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "meter",
         "tectonics",
         "catalyst",
+        "catalysts",
         "metal expand",
         "photosynthesis",
         "area of a circle",
@@ -204,6 +259,8 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
         "big o",
         "null pointer",
         "database index",
+        "add an index",
+        "index to a",
         "http client",
         "json payload",
         "loop",
@@ -223,7 +280,11 @@ def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
     )
     if _contains_any(lowered, coding_concepts):
         return ExpertRoute.CODING, True
-    return ExpertRoute.CONVERSATION, False
+    general_conversation = re.search(
+        r"\b(?:explain|describe|summarize|compare|why|which|list|what|how\s+does)\b",
+        lowered,
+    )
+    return ExpertRoute.CONVERSATION, bool(general_conversation)
 
 
 def deterministic_fallback(message: str) -> ExpertRoute:

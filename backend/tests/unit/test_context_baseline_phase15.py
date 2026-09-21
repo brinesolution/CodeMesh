@@ -45,6 +45,35 @@ def test_shared_context_keeps_recent_user_and_assistant_messages_when_router_say
     ]
 
 
+def test_shared_context_keeps_newest_messages_when_an_older_answer_exceeds_budget(tmp_path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'oversized.db'}", context_turns=3)
+    repository = ChatRepository(settings)
+    session_id = repository.create_session().id
+    for index in range(4):
+        repository.add_message(session_id, role="user", content=f"user-{index}")
+        assistant_content = "x" * 5000 if index == 1 else f"assistant-{index}"
+        repository.add_message(session_id, role="assistant", content=assistant_content)
+
+    package = ContextManager(
+        repository,
+        settings.context_turns,
+        settings=settings,
+        memory_service=ContextMemoryService(repository, settings),
+    ).build_specialist_context(
+        session_id,
+        1000,
+        "new request",
+        ContextAnalysis(requires_history=False, recent_turns_needed=0),
+    )
+
+    assert [message["content"] for message in package.recent_messages] == [
+        "user-2",
+        "assistant-2",
+        "user-3",
+        "assistant-3",
+    ]
+
+
 def test_context_switches_disable_shared_layers_without_erasing_raw_history(tmp_path) -> None:
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'switches.db'}", context_turns=2)
     repository = ChatRepository(settings)

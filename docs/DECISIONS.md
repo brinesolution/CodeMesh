@@ -21,3 +21,6 @@
 - 2026-09-21: Phase 14 upgrades `react-syntax-highlighter` and Vitest to audited compatible releases, then keeps the single-worker test setting using the supported Vitest 4 flags.
 - 2026-09-21: With no configured remote or collaborator branch, rewrite local Git history to remove the master directive, agent note, and duplicate backend env template before public upload; the controlling directive remains ignored locally for development.
 - 2026-09-21: Resolve `uv`/npm executable paths explicitly in the Windows launcher and stop descendant processes plus verified CodeMesh port owners, so `dev.ps1` and `stop.ps1` behave predictably after detached launches.
+- 2026-09-22: Keep explicit high-confidence routing guardrails around the required Router model so clear coding/STEM/artifact intent is corrected without replacing ordinary LLM routing; the final 120-case local evaluation scored 120/120.
+- 2026-09-22: Select the newest fitting shared-context messages in reverse before restoring chronological order; this prevents one oversized older answer from erasing the whole recent window while preserving the baseline recent-context guarantee.
+- 2026-09-22: Keep deterministic durable-memory extraction question-safe and connector-aware, so revision prompts store canonical values such as Project deadline = 15 December. without question fragments or delimiter words.

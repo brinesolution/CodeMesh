@@ -71,12 +71,15 @@ class ContextManager:
         recent = []
         recent_message_ids = []
         recent_used = 0
-        for message in recent_messages:
+        selected_recent = []
+        for message in reversed(recent_messages):
             if recent_used + len(message.content) > remaining:
                 break
+            selected_recent.append(message)
+            recent_used += len(message.content)
+        for message in reversed(selected_recent):
             recent.append({"role": message.role, "content": message.content})
             recent_message_ids.append(message.id)
-            recent_used += len(message.content)
         historical_changes = []
         if intelligence.historical_changes_enabled and analysis.reference_detected:
             historical_changes = historical_project_changes(

@@ -18,7 +18,7 @@ _CODENAME = re.compile(
     r"\b(?:project\s+)?codename\s*(?:is|=|:)?\s*(?P<value>[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+)"
 )
 _BUDGET = re.compile(
-    r"\b(?:project\s+)?budget\s*(?:is|=|:|of)\s*"
+    r"\b(?:project\s+)?budget\s*(?:is|=|:|of|to)\s*"
     r"(?P<value>(?:₹|rs\.?|inr\s*)\s*[\d,]+(?:\.\d+)?)",
     re.IGNORECASE,
 )
@@ -32,14 +32,17 @@ _DATABASE_REPLACEMENT = re.compile(
     re.IGNORECASE,
 )
 _DEADLINE = re.compile(
-    r"\b(?:deadline|launch date|release date)\s*(?:is|=|:|on)?\s*"
-    r"(?P<value>[A-Za-z0-9][A-Za-z0-9 ,/-]{2,60})",
+    r"\b(?:deadline|launch date|release date)\s*(?:is|=|:|on|to)?\s*"
+    r"(?P<value>[A-Za-z0-9][A-Za-z0-9 /-]{2,60})",
     re.IGNORECASE,
 )
 _CONCURRENCY = re.compile(
     r"\b(?:concurrency|concurrent\s+users)\s*(?:is|=|:|of|set\s+to)?\s*"
     r"(?P<value>\d[\d,]*)",
     re.IGNORECASE,
+)
+_CONCURRENT_USERS_BEFORE_LABEL = re.compile(
+    r"\b(?P<value>\d[\d,]*)\s+concurrent\s+users\b", re.IGNORECASE
 )
 _PLATFORMS = re.compile(
     r"\bplatforms?\s*(?:are|is|=|:)?\s*(?P<value>[^.\n]{2,80})",
@@ -54,6 +57,23 @@ _DATABASE_NAMES = {
     "mariadb",
     "redis",
     "dynamodb",
+}
+_NON_VALUE_WORDS = {
+    "current",
+    "previous",
+    "old",
+    "new",
+    "what",
+    "which",
+    "did",
+    "we",
+    "and",
+    "is",
+    "was",
+    "were",
+    "the",
+    "a",
+    "an",
 }
 
 
@@ -341,14 +361,15 @@ def _project_state_changes(message: str) -> list[MemoryChange]:
     database = _DATABASE.search(message)
     if database:
         value = database.group("value").strip(" .,!?")
-        changes.append(
-            MemoryChange(
-                category="decisions",
-                key="project.database",
-                id="project-database",
-                text=f"Database = {value}.",
+        if value.lower() not in _NON_VALUE_WORDS:
+            changes.append(
+                MemoryChange(
+                    category="decisions",
+                    key="project.database",
+                    id="project-database",
+                    text=f"Database = {value}.",
+                )
             )
-        )
     replacement = _DATABASE_REPLACEMENT.search(message)
     if replacement and (
         replacement.group("old").lower() in _DATABASE_NAMES
@@ -369,16 +390,19 @@ def _project_state_changes(message: str) -> list[MemoryChange]:
     deadline = _DEADLINE.search(message)
     if deadline:
         value = deadline.group("value").strip(" .,!?")
-        changes.append(
-            MemoryChange(
-                category="facts",
-                key="project.deadline",
-                id="project-deadline",
-                text=f"Project deadline = {value}.",
+        if value.lower().split()[0] not in _NON_VALUE_WORDS:
+            changes.append(
+                MemoryChange(
+                    category="facts",
+                    key="project.deadline",
+                    id="project-deadline",
+                    text=f"Project deadline = {value}.",
+                )
             )
-        )
 
-    concurrency = _CONCURRENCY.search(message)
+    concurrency = _CONCURRENCY.search(message) or _CONCURRENT_USERS_BEFORE_LABEL.search(
+        message
+    )
     if concurrency:
         value = concurrency.group("value").replace(",", "")
         changes.append(
@@ -392,7 +416,12 @@ def _project_state_changes(message: str) -> list[MemoryChange]:
 
     platforms = _PLATFORMS.search(message)
     if platforms:
-        value = platforms.group("value").strip(" .,!?")
+        value = re.sub(
+            r"^(?:to|on)\s+",
+            "",
+            platforms.group("value").strip(" .,!?"),
+            flags=re.IGNORECASE,
+        )
         if any(token in value.lower() for token in ("android", "ios", "web", "windows", "macos")):
             changes.append(
                 MemoryChange(

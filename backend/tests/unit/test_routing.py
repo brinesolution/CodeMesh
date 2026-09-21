@@ -111,6 +111,17 @@ async def test_high_confidence_conversation_cannot_hide_obvious_stem_request() -
     assert result.routing_fallback is True
 
 
+async def test_high_confidence_coding_cannot_hide_obvious_stem_request() -> None:
+    gateway = FakeGateway(['{"expert":"coding","confidence":0.95,"reason":"code"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Integrate 2x with respect to x.")
+
+    assert result.expert is ExpertRoute.STEM
+    assert result.routing_fallback is True
+
+
 async def test_high_confidence_non_artifact_route_is_preserved() -> None:
     gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
     settings = Settings()
@@ -120,3 +131,112 @@ async def test_high_confidence_non_artifact_route_is_preserved() -> None:
 
     assert result.expert is ExpertRoute.STEM
     assert result.routing_fallback is False
+
+
+async def test_generic_explanation_guardrail_corrects_neutral_router_drift() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Explain why sleep matters for learning.")
+
+    assert result.expert is ExpertRoute.CONVERSATION
+    assert result.routing_fallback is True
+
+
+async def test_current_fact_questions_are_not_misclassified_as_electricity() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("What database is current and what was the previous one?")
+
+    assert result.expert is ExpertRoute.CONVERSATION
+    assert result.routing_fallback is True
+
+
+async def test_project_offline_and_goal_statements_stay_conversational() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    offline = await service.route(
+        "The project must work fully offline and must not use external APIs."
+    )
+    goal = await service.route("The current goal is to add unit tests for this service.")
+
+    assert offline.expert is ExpertRoute.CONVERSATION
+    assert goal.expert is ExpertRoute.CONVERSATION
+    assert offline.routing_fallback is True
+    assert goal.routing_fallback is True
+
+
+async def test_gravity_range_reference_stays_stem() -> None:
+    gateway = FakeGateway(['{"expert":"coding","confidence":0.95,"reason":"code"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route(
+        "Using the expected value, verify the horizontal range for 30 m/s at 40° "
+        "with the current gravity."
+    )
+
+    assert result.expert is ExpertRoute.STEM
+    assert result.routing_fallback is True
+
+
+async def test_historical_value_question_stays_conversational() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("What language and gravity values changed historically?")
+
+    assert result.expert is ExpertRoute.CONVERSATION
+    assert result.routing_fallback is True
+
+
+async def test_junit_test_artifact_routes_to_coding() -> None:
+    gateway = FakeGateway(['{"expert":"conversation","confidence":0.95,"reason":"chat"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Write the JUnit tests we planned using the expected value.")
+
+    assert result.expert is ExpertRoute.CODING
+    assert result.routing_fallback is True
+
+
+async def test_database_replacement_without_database_word_stays_conversational() -> None:
+    gateway = FakeGateway(['{"expert":"coding","confidence":0.95,"reason":"code"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route(
+        "Replace SQLite with PostgreSQL while keeping the same local workflow."
+    )
+
+    assert result.expert is ExpertRoute.CONVERSATION
+    assert result.routing_fallback is True
+
+
+async def test_request_rate_input_check_routes_to_coding() -> None:
+    gateway = FakeGateway(['{"expert":"conversation","confidence":0.95,"reason":"chat"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Add an input check that rejects negative request rates.")
+
+    assert result.expert is ExpertRoute.CODING
+    assert result.routing_fallback is True
+
+
+async def test_input_check_followup_question_stays_conversational() -> None:
+    gateway = FakeGateway(['{"expert":"coding","confidence":0.95,"reason":"code"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Why should that input check be kept?")
+
+    assert result.expert is ExpertRoute.CONVERSATION
+    assert result.routing_fallback is True

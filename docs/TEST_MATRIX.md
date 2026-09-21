@@ -1,15 +1,15 @@
 | Area | Command/check | Status |
 |---|---|---|
-| Backend unit/integration/failure | `.\scripts\test.ps1` | passing: 53 passed, 5 live deselected |
+| Backend unit/integration/failure | `.\scripts\test.ps1` | passing: 77 passed, 5 live deselected |
 | Backend lint | `uv run ruff check app tests` | passing |
 | Frontend typecheck/build | `npm run typecheck; npm run build` | passing |
-| Frontend tests | `npm test` | passing: 16 tests |
+| Frontend tests | `npm test` | passing: 19 tests in 9 files |
 | Model configuration | `/api/v1/models`; Models tab; assignment and reset flow | passing: 14 live Ollama models discovered; all four role selectors updated; defaults restored to exact assignments |
 | Live models | `scripts/verify-models.ps1`; `uv run pytest -m live -q` | passing: 4 installed, 5 live tests |
-| Classroom prompts | `docs/DEMO.md` prompts through `/api/v1/chat` | passing: 6/6, exact specialist models |
-| Routing | `uv run python evaluation/run_routing_eval.py --api http://127.0.0.1:8000` | passing: latest local report 118/120, 98.33%; average route latency 1474.00 ms; fallback 24.17% |
-| Performance | `uv run python evaluation/run_latency_eval.py --rounds 1` | passing: latest 21-measurement report — total mean conversation 2351.29 ms, STEM 6635.53 ms, coding 4050.06 ms; generation mean 2275.95/6553.74/3972.15 ms; model switch 27.40–43.68 ms; RAM 10.44–10.79/15.73 GB, VRAM 4.61–7.05/8.00 GB, GPU 91–96% |
-| Browser | `scripts/browser-smoke.ps1`; Playwright fixed-shell checks at 1920x1080, 1366x768, 1024x768, and 390x844 | passing; independent sidebar/message scroll, fixed footer/header/composer, mobile drawer, live stream, telemetry, Models panel, Auto new chat, and console errors 0 verified |
+| Classroom prompts | `docs/DEMO.md` prompts through `/api/v1/chat` | passing: 6/6, exact specialist models (Conversation 2/2, STEM 2/2, Coding 2/2) |
+| Routing | `python evaluation/run_routing_eval.py --api http://127.0.0.1:8000 --output evaluation/reports/routing_phase15.json` | passing: 120/120, 100.00%; average latency 1671.30 ms; fallback 25.83% |
+| Performance | `python evaluation/run_latency_eval.py --api http://127.0.0.1:8000 --rounds 1 --output evaluation/reports/latency_latest.json` | passing: Conversation 6709.54 ms, STEM 11468.74 ms, Coding 8572.45 ms; generation p50 4446.66 ms, p90 7778.00 ms; model-switch p50 12.76 ms, max 19.58 ms; RAM max 12,088,602,624 B, VRAM max 7,795,511,296 B, GPU max 96%; 1/3 over 10 s, 0 over 30 s |
+| Browser | Playwright fixed-shell checks at 1920x1080, 1366x768, 1024x768, and 390x844 | passing; independent sidebar/message scroll, fixed footer/header/composer, mobile drawer, live stream/Stop, telemetry, Models panel, Auto new chat, and console errors 0 verified |
 | Context and memory | `uv run python evaluation/run_context_stress.py --session-id <real-ui-session>` | passing: 20/20 exact prompts, 40 raw messages, historical continuity, goal/task retention, bounded summary, unique memory IDs, final implementation |
 | Long conversation and recovery | 40-turn bounded unit test; 30-turn live session; backend restart; rebuild endpoint | passing: raw messages preserved, summary boundary persisted, context survived restart, rebuild rederived context |
 | Router model switch | live `PUT /api/v1/models/router`, Auto chat, restore defaults | passing: route and context tasks both used the assigned `qwen3:1.7b`; defaults restored to `qwen3:0.6b` |
