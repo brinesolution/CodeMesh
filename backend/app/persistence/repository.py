@@ -6,10 +6,12 @@ from sqlalchemy import delete, select
 
 from app.persistence.database import build_engine, build_session_factory
 from app.persistence.tables import (
+    ApplicationSetting,
     Base,
     ChatMessage,
     ChatSession,
     ContextRun,
+    MaintenanceRun,
     MemoryEvent,
     SessionContext,
     utcnow,
@@ -22,9 +24,13 @@ class ChatRepository:
         self.session_factory = build_session_factory(settings)
         Base.metadata.create_all(self.engine)
 
-    def create_session(self, preferred_mode: str = "auto") -> ChatSession:
+    def create_session(self, preferred_mode: str = "auto", title: str = "New chat") -> ChatSession:
         with self.session_factory() as db:
-            item = ChatSession(id=str(uuid4()), preferred_mode=preferred_mode)
+            item = ChatSession(
+                id=str(uuid4()),
+                preferred_mode=preferred_mode,
+                title=title.strip()[:200] or "New chat",
+            )
             item.context = SessionContext(session_id=item.id)
             db.add(item)
             db.commit()
@@ -48,6 +54,7 @@ class ChatRepository:
             item = db.get(ChatSession, session_id)
             if item is None:
                 return False
+            db.execute(delete(MaintenanceRun).where(MaintenanceRun.session_id == session_id))
             db.execute(delete(ContextRun).where(ContextRun.session_id == session_id))
             db.execute(delete(MemoryEvent).where(MemoryEvent.session_id == session_id))
             db.delete(item)
@@ -200,6 +207,64 @@ class ChatRepository:
             db.commit()
             db.refresh(event)
             return event
+
+    def get_application_setting(self, key: str) -> str | None:
+        with self.session_factory() as db:
+            item = db.get(ApplicationSetting, key)
+            return item.value_json if item is not None else None
+
+    def save_application_setting(self, key: str, value_json: str) -> None:
+        with self.session_factory() as db:
+            item = db.get(ApplicationSetting, key)
+            if item is None:
+                item = ApplicationSetting(key=key, value_json=value_json)
+                db.add(item)
+            else:
+                item.value_json = value_json
+                item.updated_at = utcnow()
+            db.commit()
+
+    def create_maintenance_run(
+        self,
+        session_id: str,
+        *,
+        user_message_id: int | None,
+        response_message_id: int | None,
+    ) -> MaintenanceRun | None:
+        with self.session_factory() as db:
+            if db.get(ChatSession, session_id) is None:
+                return None
+            run = MaintenanceRun(
+                session_id=session_id,
+                user_message_id=user_message_id,
+                response_message_id=response_message_id,
+                status="queued",
+            )
+            db.add(run)
+            db.commit()
+            db.refresh(run)
+            return run
+
+    def update_maintenance_run(self, run_id: int, **fields) -> MaintenanceRun | None:
+        with self.session_factory() as db:
+            run = db.get(MaintenanceRun, run_id)
+            if run is None:
+                return None
+            for key, value in fields.items():
+                setattr(run, key, value)
+            db.commit()
+            db.refresh(run)
+            return run
+
+    def list_maintenance_runs(self, session_id: str, limit: int = 64) -> list[MaintenanceRun]:
+        with self.session_factory() as db:
+            query = (
+                select(MaintenanceRun)
+                .where(MaintenanceRun.session_id == session_id)
+                .order_by(MaintenanceRun.queued_at.asc(), MaintenanceRun.id.asc())
+                .limit(limit)
+            )
+            return list(db.scalars(query))
 
     def list_memory_events(self, session_id: str, limit: int = 128) -> list[MemoryEvent]:
         with self.session_factory() as db:

@@ -164,3 +164,17 @@ export interface SessionContext {
   last_memory_model: string | null;
   last_summary_model: string | null;
 }
+
+export interface ContextIntelligenceSettings {
+  shared_context_enabled: boolean;
+  recent_context_enabled: boolean;
+  structured_memory_enabled: boolean;
+  rolling_summary_enabled: boolean;
+  reference_resolution_enabled: boolean;
+  smart_context_analysis_enabled: boolean;
+  historical_changes_enabled: boolean;
+}
+
+export interface ContextSettingsResponse extends ContextIntelligenceSettings {
+  effective: ContextIntelligenceSettings;
+}

@@ -61,8 +61,25 @@ def _contains_any(message: str, markers: tuple[str, ...]) -> bool:
     )
 
 
+def has_artifact_intent(message: str) -> bool:
+    lowered = message.lower()
+    return bool(
+        re.search(
+            r"\b(write|create|generate|implement|build|debug|refactor|rewrite|modify|convert)\b",
+            lowered,
+        )
+        and re.search(
+            r"\b(json|configuration|config|sql|query|function|code|script|handler|test|"
+            r"implementation|class|endpoint|api)\b",
+            lowered,
+        )
+    )
+
+
 def deterministic_route(message: str) -> tuple[ExpertRoute, bool]:
     lowered = message.lower()
+    if has_artifact_intent(message):
+        return ExpertRoute.CODING, True
     conversation_overrides = (
         "python is",
         "python mean",

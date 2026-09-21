@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.context.schemas import ContextSettingsResponse
+
 
 class MeshSession(BaseModel):
     id: str
@@ -42,6 +44,7 @@ class MeshSummary(BaseModel):
 
 class MeshMemoryItem(BaseModel):
     id: str
+    key: str | None = None
     text: str
     source_message_id: int | None = None
     updated_at: str
@@ -127,6 +130,18 @@ class MeshStorage(BaseModel):
     tables: list[StorageTable] = Field(default_factory=list)
 
 
+class MeshMaintenance(BaseModel):
+    id: int
+    status: str
+    queued_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    latency_ms: float | None = None
+    memory_status: str | None = None
+    summary_status: str | None = None
+    error: str | None = None
+
+
 class ContextMeshResponse(BaseModel):
     model_config = ConfigDict(title="Context Mesh projection")
 
@@ -138,5 +153,7 @@ class ContextMeshResponse(BaseModel):
     recent_context: MeshRecentContext
     messages: list[MeshMessage] = Field(default_factory=list)
     latest_context_package: MeshContextPackage | None = None
+    context_settings: ContextSettingsResponse
+    latest_maintenance: MeshMaintenance | None = None
     timeline: list[MeshTimelineEvent] = Field(default_factory=list)
     storage: MeshStorage

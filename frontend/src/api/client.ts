@@ -1,4 +1,4 @@
-import type { Mode, ModelConfiguration, ModelRole, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot } from "./types";
+import type { ContextIntelligenceSettings, ContextSettingsResponse, Mode, ModelConfiguration, ModelRole, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot } from "./types";
 import { getContextMesh } from "../features/context-mesh/api/contextMeshApi";
 import { parseNdjsonChunk } from "./stream";
 
@@ -25,10 +25,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   listSessions: () => request<SessionSummary[]>("/sessions"),
   getSession: (id: string) => request<SessionDetail>(`/sessions/${id}`),
-  createSession: (preferredMode: Mode = "auto") =>
+  createSession: (preferredMode: Mode = "auto", title = "New chat") =>
     request<SessionSummary>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ preferred_mode: preferredMode }),
+      body: JSON.stringify({ preferred_mode: preferredMode, title }),
     }),
   deleteSession: (id: string) => request<{ deleted: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
   system: () => request<SystemSnapshot>("/system"),
@@ -40,6 +40,13 @@ export const api = {
     }),
   resetModels: () => request<ModelConfiguration>("/models/reset", { method: "POST" }),
   getSessionContext: (id: string) => request<SessionContext>(`/sessions/${id}/context`),
+  getContextSettings: () => request<ContextSettingsResponse>("/settings/context"),
+  updateContextSettings: (patch: Partial<ContextIntelligenceSettings>) =>
+    request<ContextSettingsResponse>("/settings/context", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  resetContextSettings: () => request<ContextSettingsResponse>("/settings/context/reset", { method: "POST" }),
   getContextMesh,
 };
 

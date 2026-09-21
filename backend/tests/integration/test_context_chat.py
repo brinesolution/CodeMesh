@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 from app.config import Settings
 from app.core.orchestrator import Orchestrator
 from app.models.gateway import GenerationResult, RuntimeHealth, StreamChunk
@@ -108,8 +111,10 @@ async def test_chat_uses_shared_context_and_emits_context_metrics(tmp_path) -> N
     assert metrics["context"]["recent_message_roles"] == ["user", "assistant"]
     assert metrics["context"]["structured_memory_included"] is True
     assert metrics["context"]["memory_item_count"] >= 1
-    assert metrics["context"]["memory_update_status"] == "updated"
-    assert metrics["context"]["summary_update_status"] == "not_due"
+    assert metrics["context"]["memory_update_status"] == "queued"
+    assert metrics["context"]["summary_update_status"] == "queued"
+    await orchestrator._wait_for_prior_maintenance(session_id)
+    assert orchestrator.context_memory.get(session_id).memory.preferences
 
 
 async def test_context_maintenance_failure_does_not_discard_answer(tmp_path) -> None:
@@ -172,3 +177,47 @@ async def test_reference_request_receives_previous_assistant_implementation(tmp_
         )
         == 1
     )
+
+
+async def test_slow_context_maintenance_does_not_block_visible_answer(tmp_path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'context-background.db'}",
+        maintenance_wait_seconds=0.1,
+    )
+    gateway = ContextChatGateway()
+    repository = ChatRepository(settings)
+    models = build_model_registry(settings)
+    router = RouterService(gateway, models, settings)
+    orchestrator = Orchestrator(
+        settings=settings,
+        gateway=gateway,
+        repository=repository,
+        models=models,
+        router=router,
+    )
+
+    async def slow_memory_update(*args, **kwargs):
+        await asyncio.sleep(0.25)
+        return (
+            MemoryUpdate(changes=[], memory_worthy=False),
+            250.0,
+            settings.router_model,
+            False,
+        )
+
+    from app.context.schemas import MemoryUpdate
+
+    orchestrator.context_intelligence.update_memory = slow_memory_update
+    started = time.perf_counter()
+    result = await orchestrator.chat(
+        message="Remember this preference.", mode="conversation", session_id=None
+    )
+    elapsed = time.perf_counter() - started
+
+    assert result["message"] == "Answer."
+    assert elapsed < 0.22
+    session_id = result["session_id"]
+    await asyncio.sleep(0.35)
+    maintenance = repository.list_maintenance_runs(session_id)[-1]
+    assert maintenance.status == "completed"
+    assert maintenance.memory_status == "empty"

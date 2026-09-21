@@ -6,6 +6,11 @@ import statistics
 import time
 from pathlib import Path
 
+try:
+    from .semantic_checks import percentile
+except ImportError:
+    from semantic_checks import percentile
+
 import httpx
 
 PROMPTS = {
@@ -21,7 +26,7 @@ def main() -> int:
     )
     parser.add_argument("--api", default="http://127.0.0.1:8000")
     parser.add_argument("--rounds", type=int, default=1)
-    parser.add_argument("--output", default="evaluation/reports/latency_latest.json")
+    parser.add_argument("--output", default="evaluation/reports/latency_phase15.json")
     args = parser.parse_args()
     measurements: list[dict[str, object]] = []
     with httpx.Client(base_url=args.api, timeout=240.0) as client:
@@ -50,6 +55,16 @@ def main() -> int:
         expert: [float(row["elapsed_ms"]) for row in measurements if row["expert"] == expert]
         for expert in PROMPTS
     }
+    metric_values = {
+        name: [float(row["metrics"].get(name) or 0) for row in measurements if row.get("metrics")]
+        for name in (
+            "route_latency_ms",
+            "generation_latency_ms",
+            "model_switch_latency_ms",
+            "total_latency_ms",
+        )
+    }
+    snapshots = [row["after"] for row in measurements if row.get("after")]
     report = {
         "measurements": measurements,
         "summary": {
@@ -58,8 +73,45 @@ def main() -> int:
                 "mean_ms": round(statistics.mean(values), 2),
                 "min_ms": round(min(values), 2),
                 "max_ms": round(max(values), 2),
+                "p50_ms": percentile(values, 0.50),
+                "p90_ms": percentile(values, 0.90),
             }
             for expert, values in grouped.items()
+        },
+        "metric_summary": {
+            name: {
+                "count": len(values),
+                "p50_ms": percentile(values, 0.50),
+                "p90_ms": percentile(values, 0.90),
+                "max_ms": round(max(values), 2) if values else 0,
+            }
+            for name, values in metric_values.items()
+        },
+        "resource_observations": {
+            "ram_used_bytes_max": max(
+                (snapshot.get("ram_used_bytes") or 0 for snapshot in snapshots),
+                default=0,
+            ),
+            "vram_used_bytes_max": max(
+                (snapshot.get("vram_used_bytes") or 0 for snapshot in snapshots),
+                default=0,
+            ),
+            "gpu_utilization_percent_max": max(
+                (snapshot.get("gpu_utilization_percent") or 0 for snapshot in snapshots),
+                default=0,
+            ),
+            "active_models_observed": sorted(
+                {
+                    snapshot.get("active_model")
+                    for snapshot in snapshots
+                    if snapshot.get("active_model")
+                }
+            ),
+        },
+        "timeout_observations": {
+            "over_10_seconds": sum(float(row["elapsed_ms"]) > 10000 for row in measurements),
+            "over_30_seconds": sum(float(row["elapsed_ms"]) > 30000 for row in measurements),
+            "over_120_seconds": sum(float(row["elapsed_ms"]) > 120000 for row in measurements),
         },
     }
     output = Path(args.output)

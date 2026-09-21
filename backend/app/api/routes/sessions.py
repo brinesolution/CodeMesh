@@ -12,7 +12,7 @@ def list_sessions(request: Request):
 
 @router.post("/sessions", response_model=SessionSummary)
 def create_session(payload: SessionCreate, request: Request):
-    return request.app.state.repository.create_session(payload.preferred_mode)
+    return request.app.state.repository.create_session(payload.preferred_mode, payload.title)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail)

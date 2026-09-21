@@ -205,7 +205,11 @@ class ContextMemoryService:
         return SummaryBatch(candidates, candidates[-1].id)
 
     def memory_items_for_context(
-        self, state: SessionContextState, analysis: ContextAnalysis
+        self,
+        state: SessionContextState,
+        analysis: ContextAnalysis,
+        *,
+        include_all: bool = False,
     ) -> list:
         items = [
             item
@@ -220,7 +224,7 @@ class ContextMemoryService:
             topical = [item for item in items if item.topic and item.topic.lower() in topic]
             if topical:
                 return topical
-        return items if analysis.requires_history else []
+        return items if include_all or analysis.requires_history else []
 
     def context_view(self, session_id: str) -> dict[str, object] | None:
         if self.repository.get_session(session_id) is None:
@@ -276,11 +280,20 @@ class ContextMemoryService:
             (index for index, item in enumerate(items) if target_id and item.id == target_id),
             None,
         )
+        if target_index is None and change.key:
+            target_index = next(
+                (
+                    index
+                    for index, item in enumerate(items)
+                    if (item.key or self._inferred_key(change.category, item.text)) == change.key
+                ),
+                None,
+            )
         if change.action == "remove":
             if target_index is None:
                 return None
             old_item = items[target_index]
-            setattr(memory, change.category, [item for item in items if item.id != target_id])
+            setattr(memory, change.category, [item for item in items if item.id != old_item.id])
             return MemoryEventData(
                 memory_id=old_item.id,
                 category=change.category,
@@ -301,6 +314,7 @@ class ContextMemoryService:
         item_id = old_item.id if old_item is not None else change.id or uuid4().hex
         item = {
             "id": item_id,
+            "key": change.key or self._inferred_key(change.category, change.text),
             "text": change.text.strip(),
             "source_message_id": source_message_id,
             "updated_at": datetime.now(UTC).isoformat(),
@@ -337,6 +351,15 @@ class ContextMemoryService:
                 for index, item in enumerate(items):
                     if old_choice in self._normalize(item.text):
                         return index
+        return None
+
+    @staticmethod
+    def _inferred_key(category: str, text: str) -> str | None:
+        normalized = re.sub(r"\s+", " ", text.strip().lower())
+        if category == "decisions" and normalized.startswith("database ="):
+            return "project.database"
+        if category == "facts" and normalized.startswith("project budget ="):
+            return "project.total_budget"
         return None
 
     def _cap_memory(self, memory: StructuredMemory) -> None:

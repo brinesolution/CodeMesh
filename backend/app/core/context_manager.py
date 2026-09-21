@@ -1,6 +1,6 @@
 from app.config import Settings
 from app.context.extraction import historical_project_changes
-from app.context.schemas import ContextAnalysis, SpecialistContext
+from app.context.schemas import ContextAnalysis, ContextIntelligenceSettings, SpecialistContext
 from app.context.service import ContextMemoryService
 from app.persistence.repository import ChatRepository
 
@@ -36,16 +36,24 @@ class ContextManager:
         char_limit: int,
         current_message: str,
         analysis: ContextAnalysis,
+        context_settings: ContextIntelligenceSettings | None = None,
     ) -> SpecialistContext:
+        intelligence = context_settings or ContextIntelligenceSettings()
         state = self.memory_service.get(session_id)
         current = current_message.strip()
+        if not intelligence.shared_context_enabled:
+            return SpecialistContext(current_message=current)
         remaining = max(0, min(char_limit, self.settings.max_context_chars) - len(current))
-        summary = state.summary if analysis.requires_summary else ""
+        summary = state.summary if intelligence.rolling_summary_enabled and state.summary else ""
         if len(summary) > remaining:
             summary = summary[:remaining]
         remaining -= len(summary)
 
-        selected_memory = self.memory_service.memory_items_for_context(state, analysis)
+        selected_memory = self.memory_service.memory_items_for_context(
+            state,
+            analysis,
+            include_all=intelligence.structured_memory_enabled,
+        ) if intelligence.structured_memory_enabled else []
         bounded_memory = []
         memory_used = 0
         for item in selected_memory:
@@ -55,7 +63,7 @@ class ContextManager:
             memory_used += len(item.text)
         remaining -= memory_used
 
-        recent_turns = min(max(0, analysis.recent_turns_needed), self.context_turns)
+        recent_turns = self.context_turns if intelligence.recent_context_enabled else 0
         recent_messages = self.repository.recent_messages(session_id, recent_turns * 2)
         if recent_messages and recent_messages[-1].role == "user":
             if recent_messages[-1].content.strip() == current:
@@ -70,7 +78,7 @@ class ContextManager:
             recent_message_ids.append(message.id)
             recent_used += len(message.content)
         historical_changes = []
-        if analysis.reference_detected:
+        if intelligence.historical_changes_enabled and analysis.reference_detected:
             historical_changes = historical_project_changes(
                 message.content
                 for message in self.repository.all_messages(session_id)
@@ -81,7 +89,9 @@ class ContextManager:
             relevant_memory=bounded_memory,
             recent_messages=recent,
             recent_message_ids=recent_message_ids,
-            current_goal=state.memory.current_goal if analysis.requires_history else None,
+            current_goal=(
+                state.memory.current_goal if intelligence.structured_memory_enabled else None
+            ),
             historical_changes=historical_changes,
             current_message=current,
         )

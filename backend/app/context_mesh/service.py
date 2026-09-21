@@ -6,15 +6,24 @@ from sqlalchemy import inspect
 
 from app.config import Settings
 from app.context.schemas import SessionContextState
+from app.context.settings import ContextSettingsService
 from app.experts.registry import get_expert
 from app.models.registry import ModelRegistry
 from app.persistence.repository import ChatRepository
-from app.persistence.tables import ChatMessage, ChatSession, ContextRun, MemoryEvent, SessionContext
+from app.persistence.tables import (
+    ChatMessage,
+    ChatSession,
+    ContextRun,
+    MaintenanceRun,
+    MemoryEvent,
+    SessionContext,
+)
 
 from .schemas import (
     ContextMeshResponse,
     MeshContextMessage,
     MeshContextPackage,
+    MeshMaintenance,
     MeshMemory,
     MeshMemoryHistory,
     MeshMemoryItem,
@@ -40,10 +49,12 @@ class ContextMeshService:
         repository: ChatRepository,
         settings: Settings,
         models: ModelRegistry | None = None,
+        context_settings: ContextSettingsService | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.models = models
+        self.context_settings = context_settings or ContextSettingsService(repository)
 
     def get(self, session_id: str) -> ContextMeshResponse | None:
         session = self.repository.get_session(session_id)
@@ -57,6 +68,7 @@ class ContextMeshService:
         )
         recent_ids = [message.id for message in recent_messages]
         runs = self.repository.list_context_runs(session_id)
+        maintenance_runs = self.repository.list_maintenance_runs(session_id)
         memory_events = self.repository.list_memory_events(session_id)
         memory = self._memory(state)
         return ContextMeshResponse(
@@ -74,8 +86,19 @@ class ContextMeshService:
             recent_context=MeshRecentContext(message_ids=recent_ids, count=len(recent_ids)),
             messages=self._message_projection(messages, set(recent_ids)),
             latest_context_package=self._latest_package(runs, state, messages),
+            context_settings=self.context_settings.response(),
+            latest_maintenance=self._maintenance(
+                maintenance_runs[-1] if maintenance_runs else None
+            ),
             timeline=self._timeline(messages, memory_events, runs, state),
-            storage=self._storage(session, context_row, messages, runs, memory_events),
+            storage=self._storage(
+                session,
+                context_row,
+                messages,
+                runs,
+                memory_events,
+                maintenance_runs,
+            ),
         )
 
     def _context_state(
@@ -113,6 +136,7 @@ class ContextMeshService:
             values[category] = [
                 MeshMemoryItem(
                     id=item.id,
+                    key=item.key,
                     text=item.text,
                     source_message_id=item.source_message_id,
                     updated_at=item.updated_at,
@@ -149,6 +173,22 @@ class ContextMeshService:
             for message in selected
         ]
 
+    @staticmethod
+    def _maintenance(run: MaintenanceRun | None) -> MeshMaintenance | None:
+        if run is None:
+            return None
+        return MeshMaintenance(
+            id=run.id,
+            status=run.status,
+            queued_at=run.queued_at,
+            started_at=run.started_at,
+            completed_at=run.completed_at,
+            latency_ms=run.latency_ms,
+            memory_status=run.memory_status,
+            summary_status=run.summary_status,
+            error=run.error,
+        )
+
     def _latest_package(
         self,
         runs: list[ContextRun],
@@ -169,6 +209,7 @@ class ContextMeshService:
             memory_items = [
                 MeshMemoryItem(
                     id=item.id,
+                    key=item.key,
                     text=item.text,
                     source_message_id=item.source_message_id,
                     updated_at=item.updated_at,
@@ -377,6 +418,7 @@ class ContextMeshService:
         messages: list[ChatMessage],
         runs: list[ContextRun],
         memory_events: list[MemoryEvent],
+        maintenance_runs: list[MaintenanceRun],
     ) -> MeshStorage:
         table_rows: list[StorageTable] = [
             self._table(
@@ -447,6 +489,23 @@ class ContextMeshService:
                     "new_value": item.new_value,
                     "source_message_id": item.source_message_id,
                     "created_at": item.created_at.isoformat(),
+                },
+            ),
+            self._table(
+                "maintenance_runs",
+                maintenance_runs,
+                lambda item: {
+                    "id": item.id,
+                    "session_id": item.session_id,
+                    "user_message_id": item.user_message_id,
+                    "response_message_id": item.response_message_id,
+                    "status": item.status,
+                    "queued_at": item.queued_at.isoformat(),
+                    "started_at": item.started_at.isoformat() if item.started_at else None,
+                    "completed_at": item.completed_at.isoformat() if item.completed_at else None,
+                    "latency_ms": item.latency_ms,
+                    "memory_status": item.memory_status,
+                    "summary_status": item.summary_status,
                 },
             ),
         ]

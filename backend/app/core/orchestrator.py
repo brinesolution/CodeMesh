@@ -1,11 +1,13 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 from app.config import Settings
 from app.context.intelligence import ContextIntelligence
-from app.context.schemas import ContextAnalysis
+from app.context.schemas import ContextAnalysis, ContextIntelligenceSettings
 from app.context.service import ContextMemoryService
+from app.context.settings import ContextSettingsService
 from app.core.context_manager import ContextManager
 from app.core.errors import CodeMeshError, GenerationCancelled
 from app.experts.registry import get_expert
@@ -33,6 +35,7 @@ class Orchestrator:
         models: ModelRegistry,
         router: RouterService,
         context_intelligence: ContextIntelligence | None = None,
+        context_settings: ContextSettingsService | None = None,
     ) -> None:
         self.settings = settings
         self.gateway = gateway
@@ -40,6 +43,7 @@ class Orchestrator:
         self.models = models
         self.router = router
         self.context_memory = ContextMemoryService(repository, settings)
+        self.context_settings = context_settings or ContextSettingsService(repository)
         self.context_intelligence = context_intelligence or ContextIntelligence(
             gateway, models, settings
         )
@@ -50,16 +54,30 @@ class Orchestrator:
             settings=settings,
             memory_service=self.context_memory,
         )
+        self._maintenance_tasks: dict[str, asyncio.Task[dict[str, object]]] = {}
+        self._maintenance_locks: dict[str, asyncio.Lock] = {}
 
     def ensure_session(self, session_id: str | None, mode: str) -> str:
         if session_id and self.repository.get_session(session_id):
             return session_id
         return self.repository.create_session(preferred_mode=mode).id
 
+    async def shutdown(self) -> None:
+        tasks = list(self._maintenance_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._maintenance_tasks.clear()
+        self._maintenance_locks.clear()
+
     async def rebuild_context(self, session_id: str) -> dict[str, object]:
         """Rebuild derived context from durable raw messages without rewriting them."""
         if self.repository.get_session(session_id) is None:
             raise ValueError("Session not found")
+        context_settings = self.context_settings.effective(self.context_settings.get())
+        if not context_settings.shared_context_enabled:
+            return self.context_memory.context_view(session_id) or {}
         self.context_memory.reset(session_id)
         messages = self.repository.all_messages(session_id)
         for index, message in enumerate(messages):
@@ -69,15 +87,22 @@ class Orchestrator:
             recent = [
                 {"role": item.role, "content": item.content}
                 for item in messages[max(0, index - self.settings.context_turns * 2) : index]
-            ]
+            ] if context_settings.recent_context_enabled else []
             analysis, _, router_model, _ = await self.context_intelligence.analyze(
-                message.content, state, recent
+                message.content,
+                state,
+                recent,
+                reference_resolution_enabled=context_settings.reference_resolution_enabled,
+                smart_context_analysis_enabled=context_settings.smart_context_analysis_enabled,
             )
             self.context_memory.record_analysis(session_id, analysis, router_model)
             if index + 1 >= len(messages) or messages[index + 1].role != "assistant":
                 continue
             assistant = messages[index + 1]
-            if ContextMemoryService.is_trivial(message.content):
+            if (
+                not context_settings.structured_memory_enabled
+                or ContextMemoryService.is_trivial(message.content)
+            ):
                 continue
             state = self.context_memory.get(session_id)
             update, _, memory_model, _ = await self.context_intelligence.update_memory(
@@ -91,7 +116,7 @@ class Orchestrator:
                 source_text=message.content,
             )
 
-        while True:
+        while context_settings.rolling_summary_enabled:
             batch = self.context_memory.summary_batch(session_id)
             if batch is None:
                 break
@@ -132,12 +157,19 @@ class Orchestrator:
             return
 
         session_id = self.ensure_session(session_id, mode)
+        stored_context_settings = self.context_settings.get()
+        effective_context_settings = self.context_settings.effective(stored_context_settings)
+        await self._wait_for_prior_maintenance(session_id)
         user_message = self.repository.add_message(session_id, role="user", content=message)
         total_timer = Stopwatch()
         try:
             route = self.router.manual(mode) if mode != "auto" else await self.router.route(message)
             analysis, context_latency, context_model, context_fallback = (
-                await self._analyze_context(session_id, message)
+                await self._analyze_context(
+                    session_id,
+                    message,
+                    context_settings=effective_context_settings,
+                )
             )
             self.context_memory.record_analysis(session_id, analysis, context_model)
             route = route.model_copy(
@@ -170,7 +202,11 @@ class Orchestrator:
             }
             model_switch_latency = await self.lifecycle.prepare_specialist(expert_model.model)
             context_package = self.context.build_specialist_context(
-                session_id, expert.context_char_limit, message, analysis
+                session_id,
+                expert.context_char_limit,
+                message,
+                analysis,
+                context_settings=effective_context_settings,
             )
             context_state_snapshot = self.context_memory.get(session_id)
             prompt_messages = context_package.to_messages(expert.system_prompt)
@@ -195,6 +231,7 @@ class Orchestrator:
                     "requires_summary": analysis.requires_summary,
                     "reference_detected": analysis.reference_detected,
                     "recent_turns_needed": analysis.recent_turns_needed,
+                    "context_fallback": context_fallback,
                 },
                 "route_confidence": route.confidence,
                 "context_analysis_latency_ms": context_latency,
@@ -224,8 +261,19 @@ class Orchestrator:
                 generation_latency_ms=generation_latency,
                 validation_status=validation.status,
             )
-            maintenance = await self._maintain_context(
-                session_id, message, answer, user_message.id
+            maintenance_run = self.repository.create_maintenance_run(
+                session_id,
+                user_message_id=user_message.id,
+                response_message_id=assistant_message.id,
+            )
+            maintenance = self._queue_context_maintenance(
+                session_id=session_id,
+                user_message=message,
+                assistant_message=answer,
+                source_message_id=user_message.id,
+                response_message_id=assistant_message.id,
+                context_settings=effective_context_settings,
+                maintenance_run_id=maintenance_run.id if maintenance_run else None,
             )
             context_run = self.repository.add_context_run(
                 session_id,
@@ -242,7 +290,9 @@ class Orchestrator:
                     **context_metadata,
                     "current_goal_included": bool(context_package.current_goal),
                     "historical_changes_included": bool(context_package.historical_changes),
-                    "summary_updated": maintenance["summary_update_status"] == "updated",
+                    "summary_updated": False,
+                    "maintenance_run_id": maintenance["maintenance_run_id"],
+                    "maintenance_status": maintenance["maintenance_status"],
                     "summary_text_snapshot": context_package.summary,
                     "summary_through_message_id_snapshot": (
                         context_state_snapshot.summary_through_message_id
@@ -274,6 +324,7 @@ class Orchestrator:
                     "summary_update_status": maintenance["summary_update_status"],
                     "memory_model": maintenance["memory_model"],
                     "summary_model": maintenance["summary_model"],
+                    "maintenance_run_id": maintenance["maintenance_run_id"],
                 },
                 "telemetry": system_snapshot(expert_model.model, health.reachable),
             }
@@ -306,31 +357,173 @@ class Orchestrator:
             }
 
     async def _analyze_context(
-        self, session_id: str, message: str
+        self,
+        session_id: str,
+        message: str,
+        *,
+        context_settings: ContextIntelligenceSettings,
     ) -> tuple[ContextAnalysis, float, str, bool]:
         state = self.context_memory.get(session_id)
+        router_model = self.models.get_model("router").model
+        if not context_settings.shared_context_enabled:
+            return ContextAnalysis(), 0.0, router_model, False
         if ContextMemoryService.is_trivial(message):
             analysis = ContextAnalysis(
                 requires_history=bool(state.summary or not state.memory.is_empty()),
                 requires_summary=bool(state.summary),
                 recent_turns_needed=self.settings.context_turns
-                if state.summary or not state.memory.is_empty()
+                if context_settings.recent_context_enabled
                 else 0,
             )
-            return analysis, 0.0, self.models.get_model("router").model, False
-        recent = [
-            {"role": item.role, "content": item.content}
-            for item in self.repository.recent_messages(
-                session_id, min(self.settings.context_turns * 2, 6)
-            )
-        ]
+            return analysis, 0.0, router_model, False
+        recent = []
+        if context_settings.recent_context_enabled:
+            recent = [
+                {"role": item.role, "content": item.content}
+                for item in self.repository.recent_messages(
+                    session_id, min(self.settings.context_turns * 2, 6)
+                )
+            ]
         if (
             recent
             and recent[-1]["role"] == "user"
             and recent[-1]["content"].strip() == message.strip()
         ):
             recent = recent[:-1]
-        return await self.context_intelligence.analyze(message, state, recent)
+        return await self.context_intelligence.analyze(
+            message,
+            state,
+            recent,
+            reference_resolution_enabled=context_settings.reference_resolution_enabled,
+            smart_context_analysis_enabled=context_settings.smart_context_analysis_enabled,
+        )
+
+    async def _wait_for_prior_maintenance(self, session_id: str) -> None:
+        task = self._maintenance_tasks.get(session_id)
+        if task is None or task.done():
+            return
+        try:
+            await asyncio.wait_for(
+                asyncio.shield(task), timeout=self.settings.maintenance_wait_seconds
+            )
+        except TimeoutError:
+            logger.info("context_maintenance_wait_timeout session_id=%s", session_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.debug(
+                "prior_context_maintenance_failed session_id=%s", session_id, exc_info=True
+            )
+
+    def _queue_context_maintenance(
+        self,
+        *,
+        session_id: str,
+        user_message: str,
+        assistant_message: str,
+        source_message_id: int,
+        response_message_id: int,
+        context_settings: ContextIntelligenceSettings,
+        maintenance_run_id: int | None,
+    ) -> dict[str, object]:
+        previous = self._maintenance_tasks.get(session_id)
+        lock = self._maintenance_locks.setdefault(session_id, asyncio.Lock())
+
+        async def worker() -> dict[str, object]:
+            if previous is not None:
+                try:
+                    await previous
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.debug(
+                        "previous_context_maintenance_failed session_id=%s",
+                        session_id,
+                        exc_info=True,
+                    )
+            async with lock:
+                started_at = datetime.now(UTC).replace(tzinfo=None)
+                if maintenance_run_id is not None:
+                    self.repository.update_maintenance_run(
+                        maintenance_run_id,
+                        started_at=started_at,
+                        status="running",
+                    )
+                started = asyncio.get_running_loop().time()
+                try:
+                    result = await self._maintain_context(
+                        session_id,
+                        user_message,
+                        assistant_message,
+                        source_message_id,
+                        context_settings=context_settings,
+                    )
+                    status = "completed"
+                    error = None
+                except asyncio.CancelledError:
+                    if maintenance_run_id is not None:
+                        self.repository.update_maintenance_run(
+                            maintenance_run_id,
+                            completed_at=datetime.now(UTC).replace(tzinfo=None),
+                            status="cancelled",
+                        )
+                    raise
+                except Exception as exc:  # keep a maintenance failure off the chat path
+                    logger.exception("context_maintenance_failed session_id=%s", session_id)
+                    result = {
+                        "memory_update_latency_ms": 0.0,
+                        "summary_update_latency_ms": 0.0,
+                        "memory_update_status": "failed",
+                        "summary_update_status": "failed",
+                        "memory_model": None,
+                        "summary_model": None,
+                    }
+                    status = "failed"
+                    error = str(exc)[:500]
+                latency_ms = round((asyncio.get_running_loop().time() - started) * 1000, 2)
+                if maintenance_run_id is not None:
+                    self.repository.update_maintenance_run(
+                        maintenance_run_id,
+                        completed_at=datetime.now(UTC).replace(tzinfo=None),
+                        status=status,
+                        latency_ms=latency_ms,
+                        memory_status=result["memory_update_status"],
+                        summary_status=result["summary_update_status"],
+                        error=error,
+                    )
+                return {
+                    **result,
+                    "maintenance_status": status,
+                    "maintenance_run_id": maintenance_run_id,
+                }
+
+        task = asyncio.create_task(worker(), name=f"codemesh-maintenance-{session_id}")
+        self._maintenance_tasks[session_id] = task
+
+        def _finished(completed: asyncio.Task[dict[str, object]]) -> None:
+            if not completed.cancelled():
+                try:
+                    completed.exception()
+                except Exception:
+                    logger.debug("maintenance_task_observation_failed", exc_info=True)
+            if self._maintenance_tasks.get(session_id) is completed:
+                self._maintenance_tasks.pop(session_id, None)
+
+        task.add_done_callback(_finished)
+        return {
+            "memory_update_latency_ms": 0.0,
+            "summary_update_latency_ms": 0.0,
+            "memory_update_status": "queued",
+            "summary_update_status": "queued",
+            "memory_model": self.models.get_model("router").model
+            if context_settings.structured_memory_enabled
+            else None,
+            "summary_model": self.models.get_model("router").model
+            if context_settings.rolling_summary_enabled
+            else None,
+            "maintenance_status": "queued",
+            "maintenance_run_id": maintenance_run_id,
+        }
 
     async def _maintain_context(
         self,
@@ -338,14 +531,18 @@ class Orchestrator:
         user_message: str,
         assistant_message: str,
         source_message_id: int,
+        *,
+        context_settings: ContextIntelligenceSettings,
     ) -> dict[str, object]:
         memory_latency = 0.0
         summary_latency = 0.0
-        memory_status = "skipped"
-        summary_status = "not_due"
+        memory_status = "disabled" if not context_settings.structured_memory_enabled else "skipped"
+        summary_status = "disabled" if not context_settings.rolling_summary_enabled else "not_due"
         memory_model: str | None = None
         summary_model: str | None = None
-        if not ContextMemoryService.is_trivial(user_message):
+        if context_settings.structured_memory_enabled and not ContextMemoryService.is_trivial(
+            user_message
+        ):
             try:
                 state = self.context_memory.get(session_id)
                 update, memory_latency, model, fallback = (
@@ -362,9 +559,7 @@ class Orchestrator:
                     source_text=user_message,
                 )
                 if saved_state.version > state.version:
-                    memory_status = (
-                        "safety_net" if fallback or not update.memory_worthy else "updated"
-                    )
+                    memory_status = "fallback" if fallback else "updated"
                 else:
                     memory_status = "empty"
             except Exception:
@@ -372,7 +567,11 @@ class Orchestrator:
                 logger.debug("memory_update_failed session_id=%s", session_id, exc_info=True)
 
         try:
-            batch = self.context_memory.summary_batch(session_id)
+            batch = (
+                self.context_memory.summary_batch(session_id)
+                if context_settings.rolling_summary_enabled
+                else None
+            )
         except Exception:
             logger.debug("summary_batch_failed session_id=%s", session_id, exc_info=True)
             batch = None

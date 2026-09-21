@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, streamChat } from "./api/client";
-import type { ChatMessage, MetricsData, Mode, ModelConfiguration, ModelRole, RouteData, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
+import type { ChatMessage, ContextIntelligenceSettings, ContextSettingsResponse, MetricsData, Mode, ModelConfiguration, ModelRole, RouteData, SessionContext, SessionDetail, SessionSummary, StreamEvent, SystemSnapshot, ValidationData } from "./api/types";
 import { Sidebar } from "./components/app-shell/Sidebar";
 import { Header } from "./components/app-shell/Header";
 import { ChatView } from "./components/chat/ChatView";
@@ -39,6 +39,11 @@ export default function App() {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [savingModelRole, setSavingModelRole] = useState<ModelRole | null>(null);
   const [resettingModels, setResettingModels] = useState(false);
+  const [contextSettings, setContextSettings] = useState<ContextSettingsResponse | null>(null);
+  const [contextSettingsError, setContextSettingsError] = useState<string | null>(null);
+  const [contextSettingsLoading, setContextSettingsLoading] = useState(false);
+  const [savingContextKey, setSavingContextKey] = useState<keyof ContextIntelligenceSettings | null>(null);
+  const [resettingContext, setResettingContext] = useState(false);
   const [sessionContext, setSessionContext] = useState<SessionContext | null>(null);
   const [contextError, setContextError] = useState<string | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
@@ -87,6 +92,25 @@ export default function App() {
     const interval = window.setInterval(poll, 2000);
     return () => window.clearInterval(interval);
   }, [telemetryOpen]);
+
+  const refreshContextSettings = useCallback(async () => {
+    setContextSettingsLoading(true);
+    setContextSettingsError(null);
+    try {
+      const loaded = await api.getContextSettings();
+      setContextSettings(loaded);
+      return loaded;
+    } catch (caught) {
+      setContextSettingsError(caught instanceof Error ? caught.message : "Context settings could not be loaded.");
+      throw caught;
+    } finally {
+      setContextSettingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (telemetryOpen) void refreshContextSettings().catch(() => undefined);
+  }, [refreshContextSettings, telemetryOpen]);
 
   const refreshModels = useCallback(async () => {
     setModelsLoading(true);
@@ -161,6 +185,30 @@ export default function App() {
     }
   }, []);
 
+  const toggleContextSetting = useCallback(async (key: keyof ContextIntelligenceSettings, value: boolean) => {
+    setSavingContextKey(key);
+    setContextSettingsError(null);
+    try {
+      setContextSettings(await api.updateContextSettings({ [key]: value }));
+    } catch (caught) {
+      setContextSettingsError(caught instanceof Error ? caught.message : "The context setting could not be saved.");
+    } finally {
+      setSavingContextKey(null);
+    }
+  }, []);
+
+  const resetContextSettings = useCallback(async () => {
+    setResettingContext(true);
+    setContextSettingsError(null);
+    try {
+      setContextSettings(await api.resetContextSettings());
+    } catch (caught) {
+      setContextSettingsError(caught instanceof Error ? caught.message : "Context defaults could not be restored.");
+    } finally {
+      setResettingContext(false);
+    }
+  }, []);
+
   const selectSession = async (id: string) => {
     try {
       const detail = await api.getSession(id);
@@ -212,7 +260,7 @@ export default function App() {
     <Sidebar sessions={sessions} activeId={activeSessionId} open={sidebarOpen} ollamaOnline={online} onNew={newChat} onSelect={(id) => void selectSession(id)} onDelete={(id) => void deleteSession(id)} onClose={() => setSidebarOpen(false)} onTelemetry={() => setTelemetryOpen(true)} onContextMesh={() => setContextMeshOpen(true)} meshMemoryCount={contextMesh.data ? contextMesh.data.memory.facts.length + contextMesh.data.memory.decisions.length + contextMesh.data.memory.constraints.length + contextMesh.data.memory.preferences.length + contextMesh.data.memory.open_tasks.length + (contextMesh.data.memory.current_goal ? 1 : 0) : sessionContext ? sessionContext.memory.facts.length + sessionContext.memory.decisions.length + sessionContext.memory.constraints.length + sessionContext.memory.preferences.length + sessionContext.memory.open_tasks.length + (sessionContext.memory.current_goal ? 1 : 0) : undefined} meshRecentCount={contextMesh.data?.recent_context.count ?? (sessionContext ? sessionContext.recent_context_turns * 2 : undefined)} />
     {sidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
     <div className="main-pane"><Header mode={mode} online={online} onMenu={() => setSidebarOpen(true)} onTelemetry={() => setTelemetryOpen(true)} /><ChatView sessionId={activeSessionId} routerModel={modelConfiguration?.assignments.router ?? null} messages={messages} input={input} mode={mode} isStreaming={isStreaming} error={error} route={route} validation={validation} metrics={metrics} onInput={setInput} onModeChange={setMode} onSend={() => void sendMessage()} onStop={stop} onPrompt={promptCard} onRegenerate={regenerate} /></div>
-    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} sessionId={activeSessionId} sessionContext={sessionContext} contextError={contextError} contextLoading={contextLoading} onRefreshContext={() => void refreshContext()} onClose={() => setTelemetryOpen(false)} />
+    <TelemetryDrawer open={telemetryOpen} system={system} route={route} metrics={metrics} modelConfiguration={modelConfiguration} modelError={modelError} modelsLoading={modelsLoading} savingModelRole={savingModelRole} resettingModels={resettingModels} onRefreshModels={() => void refreshModels()} onAssignModel={(role, model) => void assignModel(role, model)} onResetModels={() => void resetModels()} contextSettings={contextSettings} contextSettingsError={contextSettingsError} contextSettingsLoading={contextSettingsLoading} savingContextKey={savingContextKey} resettingContext={resettingContext} onRefreshContextSettings={() => void refreshContextSettings()} onToggleContextSetting={(key, value) => void toggleContextSetting(key, value)} onResetContextSettings={() => void resetContextSettings()} sessionId={activeSessionId} sessionContext={sessionContext} contextError={contextError} contextLoading={contextLoading} onRefreshContext={() => void refreshContext()} onClose={() => setTelemetryOpen(false)} />
     {contextMeshOpen && <ContextMeshOverlay data={contextMesh.data} loading={contextMesh.loading} error={contextMesh.error} onClose={() => setContextMeshOpen(false)} onRetry={() => void contextMesh.refresh()} />}
   </div>;
 }

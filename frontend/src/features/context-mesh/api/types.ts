@@ -1,4 +1,4 @@
-import type { Mode } from "../../../api/types";
+import type { ContextIntelligenceSettings, Mode } from "../../../api/types";
 
 export type MeshView = "graph" | "context" | "timeline" | "storage";
 export type MeshMemoryStatus = "current" | "superseded";
@@ -41,6 +41,7 @@ export interface MeshSummary {
 
 export interface MeshMemoryItem {
   id: string;
+  key?: string | null;
   text: string;
   source_message_id: number | null;
   updated_at: string;
@@ -126,6 +127,18 @@ export interface MeshStorage {
   tables: StorageTable[];
 }
 
+export interface MeshMaintenance {
+  id: number;
+  status: string;
+  queued_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  latency_ms: number | null;
+  memory_status: string | null;
+  summary_status: string | null;
+  error: string | null;
+}
+
 export interface ContextMeshData {
   session: MeshSession;
   router: { model: string | null };
@@ -135,8 +148,14 @@ export interface ContextMeshData {
   recent_context: MeshRecentContext;
   messages: MeshMessage[];
   latest_context_package: MeshContextPackage | null;
+  context_settings: ContextSettingsResponse;
+  latest_maintenance: MeshMaintenance | null;
   timeline: MeshTimelineEvent[];
   storage: MeshStorage;
+}
+
+export interface ContextSettingsResponse extends ContextIntelligenceSettings {
+  effective: ContextIntelligenceSettings;
 }
 
 export interface ContextMeshEmptyState {

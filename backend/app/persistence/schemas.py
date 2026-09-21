@@ -20,6 +20,7 @@ class MessageView(BaseModel):
 
 class SessionCreate(BaseModel):
     preferred_mode: str = Field(default="auto", max_length=30)
+    title: str = Field(default="New chat", max_length=200)
 
 
 class SessionSummary(BaseModel):
@@ -34,4 +35,3 @@ class SessionSummary(BaseModel):
 
 class SessionDetail(SessionSummary):
     messages: list[MessageView]
-

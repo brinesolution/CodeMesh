@@ -12,6 +12,11 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+try:
+    from .semantic_checks import contains_all, contains_number, has_code_fence
+except ImportError:
+    from semantic_checks import contains_all, contains_number, has_code_fence
+
 
 ROOT = Path(__file__).resolve().parent
 CASES_PATH = ROOT / "context_stress_cases.json"
@@ -60,7 +65,8 @@ def main() -> int:
     checks = {
         "twenty_exact_user_prompts": len(user_messages) == 20 and prompt_match,
         "forty_raw_messages": len(messages) == 40,
-        "durable_goal": memory.get("current_goal") == "Add unit tests for the projectile-motion calculator.",
+        "durable_goal": memory.get("current_goal")
+        == "Add unit tests for the projectile-motion calculator.",
         "updated_gravity": any(
             item["id"] == "projectile-gravity" and "9.80665" in item["text"]
             for item in memory.get("facts", [])
@@ -75,10 +81,12 @@ def main() -> int:
         "historical_summary": "Language history: Python -> Java 21." in summary
         and "Gravity history: 9.81 -> 9.80665" in summary,
         "unique_memory_ids": len(memory_ids) == len(set(memory_ids)),
-        "historical_answer": all(
-            token in history_answer for token in ("Python", "Java", "9.81", "9.80665")
-        ),
-        "final_implementation": "junit" in final_answer.lower() and "```" in final_answer,
+        "historical_answer": contains_all(
+            history_answer, ("Python", "Java", "gravity", "language")
+        )
+        and contains_number(history_answer, 9.81)
+        and contains_number(history_answer, 9.80665),
+        "final_implementation": "junit" in final_answer.lower() and has_code_fence(final_answer),
     }
     route_counts: dict[str, int] = {}
     for message in assistant_messages:

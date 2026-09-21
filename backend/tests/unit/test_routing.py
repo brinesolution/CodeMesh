@@ -85,3 +85,38 @@ async def test_router_reads_the_current_registry_assignment() -> None:
 
     assert result.router_model == "gemma3:1b"
     assert gateway.models == ["gemma3:1b"]
+
+
+async def test_artifact_generation_intent_overrides_domain_noun() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.9,"reason":"JSON uses structure."}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route(
+        "Write a JSON configuration representing the current requirements."
+    )
+
+    assert result.expert is ExpertRoute.CODING
+    assert result.routing_fallback is True
+
+
+async def test_high_confidence_conversation_cannot_hide_obvious_stem_request() -> None:
+    gateway = FakeGateway(['{"expert":"conversation","confidence":0.95,"reason":"chat"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Calculate the acceleration when a 20 N force acts on 5 kg.")
+
+    assert result.expert is ExpertRoute.STEM
+    assert result.routing_fallback is True
+
+
+async def test_high_confidence_non_artifact_route_is_preserved() -> None:
+    gateway = FakeGateway(['{"expert":"stem","confidence":0.95,"reason":"science"}'])
+    settings = Settings()
+    service = RouterService(gateway, build_model_registry(settings)["router"], settings)
+
+    result = await service.route("Explain why seasons change on Earth.")
+
+    assert result.expert is ExpertRoute.STEM
+    assert result.routing_fallback is False

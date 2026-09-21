@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 from collections.abc import Callable
@@ -36,23 +37,50 @@ class ContextIntelligence:
         message: str,
         state: SessionContextState,
         recent_messages: list[dict[str, str]],
+        *,
+        reference_resolution_enabled: bool = True,
+        smart_context_analysis_enabled: bool = True,
     ) -> tuple[ContextAnalysis, float, str, bool]:
         model = self.models.get_model("router").model
+        if not smart_context_analysis_enabled:
+            return (
+                _fallback_analysis(
+                    message,
+                    state,
+                    self.settings,
+                    reference_resolution_enabled=reference_resolution_enabled,
+                ),
+                0.0,
+                model,
+                False,
+            )
         prompt = context_analysis_prompt(message, state, recent_messages)
         started = time.perf_counter()
         analysis = await self._structured(
             CONTEXT_ANALYSIS_SYSTEM_PROMPT,
             prompt,
             ContextAnalysis.model_validate,
+            timeout_seconds=self.settings.context_analysis_timeout_seconds,
         )
         if analysis is not None:
             return (
-                _normalize_analysis(analysis, message, state, self.settings),
+                _normalize_analysis(
+                    analysis,
+                    message,
+                    state,
+                    self.settings,
+                    reference_resolution_enabled=reference_resolution_enabled,
+                ),
                 round((time.perf_counter() - started) * 1000, 2),
                 model,
                 False,
             )
-        fallback = _fallback_analysis(message, state, self.settings)
+        fallback = _fallback_analysis(
+            message,
+            state,
+            self.settings,
+            reference_resolution_enabled=reference_resolution_enabled,
+        )
         return fallback, round((time.perf_counter() - started) * 1000, 2), model, True
 
     async def update_memory(
@@ -69,6 +97,7 @@ class ContextIntelligence:
             MEMORY_UPDATE_SYSTEM_PROMPT,
             prompt,
             _parse_memory_update,
+            timeout_seconds=self.settings.memory_update_timeout_seconds,
         )
         if update is not None:
             return update, round((time.perf_counter() - started) * 1000, 2), model, False
@@ -92,6 +121,7 @@ class ContextIntelligence:
             SUMMARY_UPDATE_SYSTEM_PROMPT,
             prompt,
             SummaryUpdate.model_validate,
+            timeout_seconds=self.settings.summary_update_timeout_seconds,
         )
         if update is not None:
             return update, round((time.perf_counter() - started) * 1000, 2), model, False
@@ -107,19 +137,35 @@ class ContextIntelligence:
         system_prompt: str,
         prompt: str,
         validator: Callable[[object], object],
+        *,
+        timeout_seconds: float,
     ) -> object | None:
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ]
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
         for attempt in range(2):
             try:
-                result = await self.gateway.generate(
-                    model=self.models.get_model("router").model,
-                    messages=messages,
-                    structured=True,
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    return None
+                result = await asyncio.wait_for(
+                    self.gateway.generate(
+                        model=self.models.get_model("router").model,
+                        messages=messages,
+                        structured=True,
+                    ),
+                    timeout=remaining,
                 )
+                # The gateway call is intentionally bounded here rather than at
+                # specialist generation, whose timeout remains the larger Ollama
+                # request budget.
+                if asyncio.get_running_loop().time() > deadline:
+                    return None
                 return validator(parse_json_object(result.text))
+            except asyncio.CancelledError:
+                raise
             except Exception:
                 if attempt == 0:
                     messages.append(
@@ -162,9 +208,13 @@ def _parse_memory_update(payload: object) -> MemoryUpdate:
 
 
 def _fallback_analysis(
-    message: str, state: SessionContextState, settings: Settings
+    message: str,
+    state: SessionContextState,
+    settings: Settings,
+    *,
+    reference_resolution_enabled: bool = True,
 ) -> ContextAnalysis:
-    reference_detected = _has_context_reference(message)
+    reference_detected = reference_resolution_enabled and _has_context_reference(message)
     requires_history = reference_detected or bool(state.summary) or not state.memory.is_empty()
     return ContextAnalysis(
         expert=deterministic_fallback(message),
@@ -183,13 +233,17 @@ def _normalize_analysis(
     message: str,
     state: SessionContextState,
     settings: Settings,
+    *,
+    reference_resolution_enabled: bool = True,
 ) -> ContextAnalysis:
     valid_memory_ids = {
         item.id
         for category in ("facts", "decisions", "constraints", "preferences", "open_tasks")
         for item in getattr(state.memory, category)
     }
-    reference_detected = analysis.reference_detected or _has_context_reference(message)
+    reference_detected = reference_resolution_enabled and (
+        analysis.reference_detected or _has_context_reference(message)
+    )
     requires_history = (
         analysis.requires_history
         or bool(analysis.relevant_memory_ids)
@@ -222,7 +276,11 @@ def _has_context_reference(message: str) -> bool:
     return bool(
         re.search(
             r"\b(previous|earlier|before|same|that|those|it|continue|again|accordingly|"
-            r"discussed|decided|go back|all three|this|historical|history|decisions|remaining)\b",
+            r"discussed|decided|go back|all three|this|historical|history|decisions|remaining)\b|"
+            r"\b(?:the|that|those|these)\s+(?:function|code|query|value|values|result|results|"
+            r"formula|implementation|roots|calculation|expected value)\b|"
+            r"\b(?:using the expected value|what did (?:we|i) tell you|what did we decide|"
+            r"what were we about to|current requirement|current value)\b",
             message.lower(),
         )
     )

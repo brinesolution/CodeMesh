@@ -6,6 +6,32 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.routing.schema import ExpertRoute
 
+
+class ContextIntelligenceSettings(BaseModel):
+    """Stored application-level switches controlling shared context behavior."""
+
+    shared_context_enabled: bool = True
+    recent_context_enabled: bool = True
+    structured_memory_enabled: bool = True
+    rolling_summary_enabled: bool = True
+    reference_resolution_enabled: bool = True
+    smart_context_analysis_enabled: bool = True
+    historical_changes_enabled: bool = True
+
+
+class ContextSettingsPatch(BaseModel):
+    shared_context_enabled: bool | None = None
+    recent_context_enabled: bool | None = None
+    structured_memory_enabled: bool | None = None
+    rolling_summary_enabled: bool | None = None
+    reference_resolution_enabled: bool | None = None
+    smart_context_analysis_enabled: bool | None = None
+    historical_changes_enabled: bool | None = None
+
+
+class ContextSettingsResponse(ContextIntelligenceSettings):
+    effective: ContextIntelligenceSettings
+
 MemoryCategory = Literal["facts", "decisions", "constraints", "preferences", "open_tasks"]
 MemoryChangeCategory = Literal[
     "facts", "decisions", "constraints", "preferences", "open_tasks", "topics"
@@ -20,6 +46,7 @@ class MemoryItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: uuid4().hex, min_length=1, max_length=64)
+    key: str | None = Field(default=None, max_length=120)
     text: str = Field(min_length=1, max_length=400)
     source_message_id: int | None = None
     updated_at: str = Field(default_factory=_timestamp, max_length=50)
@@ -87,6 +114,7 @@ class MemoryChange(BaseModel):
     action: Literal["add", "update", "remove"] = "add"
     id: str | None = Field(default=None, max_length=64)
     replaces: str | None = Field(default=None, max_length=64)
+    key: str | None = Field(default=None, max_length=120)
     topic: str | None = Field(default=None, max_length=100)
 
 

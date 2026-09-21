@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from app.config import Settings
@@ -11,6 +12,7 @@ from app.routing.schema import (
     RouteResult,
     deterministic_fallback,
     deterministic_route,
+    has_artifact_intent,
     parse_route_output,
 )
 
@@ -41,10 +43,17 @@ class RouterService:
             {"role": "user", "content": message},
         ]
         decision: RouteDecision | None = None
+        deadline = asyncio.get_running_loop().time() + self.settings.route_timeout_seconds
         for attempt in range(2):
             try:
-                result = await self.gateway.generate(
-                    model=router_model, messages=messages, structured=True
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise TimeoutError("router deadline exceeded")
+                result = await asyncio.wait_for(
+                    self.gateway.generate(
+                        model=router_model, messages=messages, structured=True
+                    ),
+                    timeout=remaining,
                 )
                 decision = parse_route_output(result.text)
                 break
@@ -74,7 +83,34 @@ class RouterService:
         elapsed = (time.perf_counter() - started) * 1000
         guardrail_route, guardrail_used = deterministic_route(message)
         guardrail_changed = guardrail_used and guardrail_route is not decision.expert
-        if guardrail_changed:
+        obvious_stem_mismatch = (
+            guardrail_route is ExpertRoute.STEM
+            and decision.expert is ExpertRoute.CONVERSATION
+            and any(
+                marker in message.lower()
+                for marker in (
+                    "calculate",
+                    "solve",
+                    "equation",
+                    "force",
+                    "mass",
+                    "acceleration",
+                    "physics",
+                    "circuit",
+                    "resistance",
+                    "probability",
+                    "projectile",
+                    "velocity",
+                    "square root",
+                )
+            )
+        )
+        should_override = guardrail_changed and (
+            decision.confidence < self.settings.router_confidence_threshold
+            or (guardrail_route is ExpertRoute.CODING and has_artifact_intent(message))
+            or obvious_stem_mismatch
+        )
+        if should_override:
             decision = decision.model_copy(
                 update={
                     "expert": guardrail_route,
@@ -89,7 +125,7 @@ class RouterService:
             mode="auto",
             router_model=router_model,
             latency_ms=round(elapsed, 2),
-            routing_fallback=guardrail_changed,
+            routing_fallback=should_override,
             low_confidence=decision.confidence < self.settings.router_confidence_threshold,
         )
 

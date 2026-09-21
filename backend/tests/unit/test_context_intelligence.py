@@ -156,3 +156,25 @@ async def test_historical_request_requires_prior_context_and_summary() -> None:
     assert analysis.reference_detected is True
     assert analysis.requires_history is True
     assert analysis.requires_summary is True
+
+
+async def test_deterministic_reference_detector_catches_artifact_references() -> None:
+    settings = Settings(context_turns=6)
+    registry = build_model_registry(settings)
+    gateway = IntelligenceGateway()
+    gateway.outputs = [
+        '{"requires_history":false,"requires_summary":false,'
+        '"reference_detected":false,"recent_turns_needed":0}'
+    ]
+    intelligence = ContextIntelligence(gateway, registry, settings)
+
+    analysis, _, _, fallback = await intelligence.analyze(
+        "Explain the function in exactly three short bullet points.",
+        SessionContextState(),
+        [],
+    )
+
+    assert fallback is False
+    assert analysis.reference_detected is True
+    assert analysis.requires_history is True
+    assert analysis.recent_turns_needed == 6

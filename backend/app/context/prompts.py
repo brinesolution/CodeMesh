@@ -24,7 +24,7 @@ def _memory_lines(state: SessionContextState) -> str:
     lines: list[str] = []
     for category in ("facts", "decisions", "constraints", "preferences", "open_tasks"):
         for item in getattr(state.memory, category):
-            lines.append(f"{item.id} | {category} | {item.text}")
+            lines.append(f"{item.id} | {item.key or '-'} | {category} | {item.text}")
     if state.memory.current_goal:
         lines.append(f"current_goal | {state.memory.current_goal}")
     return "\n".join(lines) or "(none)"

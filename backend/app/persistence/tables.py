@@ -103,3 +103,34 @@ class MemoryEvent(Base):
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ApplicationSetting(Base):
+    """Small durable key/value store for application-level user preferences."""
+
+    __tablename__ = "application_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value_json: Mapped[str] = mapped_column(Text, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class MaintenanceRun(Base):
+    """Lifecycle metadata for bounded post-response context maintenance."""
+
+    __tablename__ = "maintenance_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    user_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    queued_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="queued")
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    memory_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    summary_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)

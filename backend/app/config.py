@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     max_prompt_chars: int = Field(default=12000, ge=1000, le=50000)
     max_context_chars: int = Field(default=32000, ge=4000, le=100000)
     ollama_timeout_seconds: float = Field(default=120.0, gt=1, le=900)
+    context_analysis_timeout_seconds: float = Field(default=10.0, gt=1, le=60)
+    memory_update_timeout_seconds: float = Field(default=12.0, gt=1, le=60)
+    summary_update_timeout_seconds: float = Field(default=15.0, gt=1, le=90)
+    maintenance_wait_seconds: float = Field(default=1.5, gt=0, le=10)
+    route_timeout_seconds: float = Field(default=10.0, gt=1, le=60)
     router_confidence_threshold: float = Field(default=0.60, ge=0, le=1)
 
 
