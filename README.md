@@ -190,7 +190,7 @@ Model requests and chat data remain local by default. Real SQLite databases, `.e
 
 ## Authors
 
-CodeMesh is a student project by Mayank Lohani, Om Jha, and Nihar Bendke.
+CodeMesh is a student project by Mayank Lohani.
 
 ## License
 
