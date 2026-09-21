@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="560" viewBox="0 0 1600 560" role="img" aria-labelledby="title desc">
+  <title id="title">CodeMesh</title>
+  <desc id="desc">Local multi-model AI orchestration with shared context and memory.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.55" stop-color="#0b1630"/>
+      <stop offset="1" stop-color="#10172a"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="560" rx="30" fill="url(#bg)"/>
+  <g opacity="0.16" stroke="#94a3b8">
+    <path d="M0 110H1600M0 220H1600M0 330H1600M0 440H1600"/>
+    <path d="M160 0V560M320 0V560M480 0V560M640 0V560M800 0V560M960 0V560M1120 0V560M1280 0V560M1440 0V560"/>
+  </g>
+
+  <g transform="translate(110 105)">
+    <text x="0" y="86" fill="#f8fafc" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="92" font-weight="700" letter-spacing="-3">CodeMesh</text>
+    <text x="2" y="140" fill="#cbd5e1" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28" font-weight="400">Local multi-model AI orchestration with shared context and memory</text>
+    <text x="2" y="196" fill="#94a3b8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21">Router intelligence · specialist models · persistent session context · Context Mesh</text>
+  </g>
+
+  <g transform="translate(980 78)" font-family="Inter,Segoe UI,Arial,sans-serif">
+    <path d="M120 185 C210 100 300 100 390 185" fill="none" stroke="url(#line)" stroke-width="5" opacity="0.9"/>
+    <path d="M120 185 C220 255 315 270 420 215" fill="none" stroke="url(#line)" stroke-width="4" opacity="0.65"/>
+    <path d="M120 185 C210 185 280 185 350 185" fill="none" stroke="url(#line)" stroke-width="4" opacity="0.75"/>
+
+    <g filter="url(#glow)">
+      <circle cx="120" cy="185" r="58" fill="#141b34" stroke="#8b5cf6" stroke-width="3"/>
+      <text x="120" y="179" fill="#f8fafc" font-size="18" font-weight="700" text-anchor="middle">ROUTER</text>
+      <text x="120" y="204" fill="#a78bfa" font-size="14" text-anchor="middle">context AI</text>
+    </g>
+
+    <g>
+      <circle cx="390" cy="110" r="52" fill="#111827" stroke="#22d3ee" stroke-width="3"/>
+      <text x="390" y="107" fill="#f8fafc" font-size="17" font-weight="700" text-anchor="middle">STEM</text>
+      <text x="390" y="130" fill="#67e8f9" font-size="13" text-anchor="middle">specialist</text>
+    </g>
+
+    <g>
+      <circle cx="430" cy="228" r="52" fill="#111827" stroke="#38bdf8" stroke-width="3"/>
+      <text x="430" y="225" fill="#f8fafc" font-size="17" font-weight="700" text-anchor="middle">CODE</text>
+      <text x="430" y="248" fill="#7dd3fc" font-size="13" text-anchor="middle">specialist</text>
+    </g>
+
+    <g>
+      <circle cx="332" cy="330" r="52" fill="#111827" stroke="#60a5fa" stroke-width="3"/>
+      <text x="332" y="327" fill="#f8fafc" font-size="17" font-weight="700" text-anchor="middle">CHAT</text>
+      <text x="332" y="350" fill="#93c5fd" font-size="13" text-anchor="middle">specialist</text>
+    </g>
+
+    <g>
+      <rect x="18" y="320" width="205" height="86" rx="20" fill="#101827" stroke="#475569" stroke-width="2"/>
+      <text x="120" y="352" fill="#e2e8f0" font-size="16" font-weight="700" text-anchor="middle">SHARED CONTEXT</text>
+      <text x="120" y="378" fill="#94a3b8" font-size="13" text-anchor="middle">SQLite · summary · memory</text>
+      <path d="M120 243V320" stroke="#64748b" stroke-width="3" stroke-dasharray="7 7"/>
+    </g>
+  </g>
+
+  <rect x="110" y="430" width="580" height="2" fill="url(#line)" opacity="0.75"/>
+  <text x="110" y="476" fill="#64748b" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18">LOCAL-FIRST · MODULAR · INSPECTABLE</text>
+</svg>

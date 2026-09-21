@@ -1,24 +1,70 @@
-# CodeMesh
+<p align="center">
+  <img src="docs/assets/codemesh-banner.svg" alt="CodeMesh" width="100%" />
+</p>
 
-CodeMesh is a local-first, multi-model AI assistant. It routes each request to a focused Ollama specialist while preserving shared session context, structured memory, and a readable chat history.
+<p align="center">
+  <strong>A local-first multi-model AI assistant that routes prompts to specialized Ollama models while preserving shared context and inspectable memory.</strong>
+</p>
 
-## Features
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-111827.svg"></a>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-111827.svg">
+  <img alt="React 19" src="https://img.shields.io/badge/react-19-111827.svg">
+  <img alt="Ollama" src="https://img.shields.io/badge/inference-Ollama-111827.svg">
+  <a href="https://github.com/brinesolution/CodeMesh/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/brinesolution/CodeMesh/actions/workflows/ci.yml/badge.svg"></a>
+</p>
 
-- Auto routing plus manual Conversation, Math & Science, and Coding modes
-- Runtime-configurable Router / Conversation / STEM / Coding model assignments
-- Local Ollama inference with streaming responses and no paid API dependency
-- Persistent SQLite sessions, rolling summaries, structured memory, and recovery from raw history
-- Context Mesh visualization for graph, context package, timeline, and storage views
-- Responsive ChatGPT-like React shell with telemetry, model metadata, KaTeX, and code rendering
+<p align="center">
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/TEST_MATRIX.md">Testing</a> ·
+  <a href="docs/DEMO.md">Demo</a> ·
+  <a href="LICENSE">License</a>
+</p>
+
+---
+
+## Overview
+
+CodeMesh runs multiple local language models behind one chat interface. A lightweight Router classifies each request, manages shared session context, and selects a focused Conversation, STEM, or Coding specialist. SQLite persists the raw conversation, structured memory, rolling summaries, and context metadata so specialists can switch without losing continuity.
+
+The project is designed for local operation first: Ollama provides inference, FastAPI coordinates routing and context, and a React interface exposes chat, telemetry, model configuration, and the Context Mesh visualizer.
+
+## Core capabilities
+
+| Capability | What it provides |
+|---|---|
+| Multi-model routing | Auto mode selects Conversation, Math & Science, or Coding specialists; manual modes remain available. |
+| Runtime model assignment | Any locally installed Ollama model can be assigned to Router, Conversation, STEM, or Coding without restarting CodeMesh. |
+| Shared context intelligence | Recent messages, rolling summaries, structured memory, goals, decisions, and constraints are assembled into bounded specialist context. |
+| Persistent local sessions | SQLite stores chats and context locally and reconstructs state after restart. |
+| Context Mesh | Interactive Graph, Context, Timeline, and Storage views show how a selected chat is remembered and assembled. |
+| Streaming and telemetry | Responses stream to the UI while system health, model state, CPU, RAM, and GPU data remain inspectable. |
+| Local-first privacy | No paid model API is required; chat databases, local environments, logs, and model files are excluded from Git. |
 
 ## Architecture
 
-```text
-User → Router / Context Intelligence → Context Manager → Specialist → Response
-                         ↘ SQLite: raw history + memory + summary
+```mermaid
+flowchart LR
+    U[User] --> R[Router and Context Intelligence]
+    R --> C[Context Manager]
+    C --> X{Selected Specialist}
+    X --> A[Conversation]
+    X --> S[STEM]
+    X --> D[Coding]
+    A --> O[Response]
+    S --> O
+    D --> O
+
+    DB[(SQLite)] --> C
+    R --> DB
+    O --> DB
+
+    DB --- H[Raw History]
+    DB --- M[Structured Memory]
+    DB --- Q[Rolling Summary]
 ```
 
-The router and context-intelligence services choose and assemble the request. The active specialist generates the response through the Ollama gateway. The Context Mesh endpoint exposes a bounded, read-only projection of the selected session; it does not expose hidden reasoning or other sessions.
+The Router provides routing and context intelligence; the Context Manager enforces deterministic limits and builds the specialist package; SQLite remains the durable source of truth. Specialist models generate the final answer.
 
 ## Default models
 
@@ -26,19 +72,36 @@ The router and context-intelligence services choose and assemble the request. Th
 |---|---|
 | Router | `qwen3:0.6b` |
 | Conversation | `smollm2:1.7b` |
-| Math & Science (STEM) | `qwen3:1.7b` |
+| Math & Science | `qwen3:1.7b` |
 | Coding | `qwen2.5-coder:3b` |
 
-Assignments are discovered from the local Ollama catalog and can be changed from the Models section of the existing system/activity panel.
+These are defaults, not hardcoded requirements. The Models panel discovers the local Ollama catalog and lets each role be reassigned at runtime.
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, XYFlow/React Flow |
+| Backend | Python 3.12+, FastAPI, Pydantic, SQLAlchemy |
+| Inference | Ollama |
+| Persistence | SQLite |
+| Validation and testing | Pytest, Ruff, MyPy, Vitest, TypeScript |
 
 ## Requirements
 
-CodeMesh is developed and tested on Windows with Python 3.12 or 3.13, Node.js/npm, `uv`, and Ollama. A minimum of 16 GB RAM is recommended for the configured local models. An NVIDIA GPU with around 8 GB VRAM improves latency, but CPU-only execution is supported with longer response times. Keep several GB of free disk space for Ollama models.
+CodeMesh is Windows-first for the current local release. Install:
 
-## Quick start (Windows)
+- Python 3.12 or 3.13
+- Node.js and npm
+- `uv`
+- Ollama
+
+16 GB RAM is recommended for the default model set. An NVIDIA GPU with about 8 GB VRAM improves latency, but the architecture does not require that exact GPU and can run more slowly on CPU-capable systems.
+
+## Quick start
 
 ```powershell
-git clone <repository-url> CodeMesh
+git clone https://github.com/brinesolution/CodeMesh.git
 Set-Location CodeMesh
 .\scripts\bootstrap.ps1
 .\scripts\doctor.ps1
@@ -46,17 +109,17 @@ Set-Location CodeMesh
 .\scripts\dev.ps1
 ```
 
-Open `http://127.0.0.1:5173`. Stop only the services launched by CodeMesh with:
+Open `http://127.0.0.1:5173`.
+
+Stop only the processes launched by CodeMesh with:
 
 ```powershell
 .\scripts\stop.ps1
 ```
 
-The app creates `backend/data/codemesh.db` automatically on first start. Copy `.env.example` to `.env` only when local configuration overrides are needed; the checked-in example contains placeholders and local defaults only.
+The application creates `backend/data/codemesh.db` on first start. Copy `.env.example` to `.env` only when local overrides are needed.
 
-## Models
-
-The default setup pulls the four models above:
+## Default model setup
 
 ```powershell
 ollama pull qwen3:0.6b
@@ -65,47 +128,70 @@ ollama pull qwen3:1.7b
 ollama pull qwen2.5-coder:3b
 ```
 
-`.\scripts\pull-models.ps1` verifies Ollama, retries resumable pulls, and checks the configured set.
+The supplied model setup script performs the same checks and avoids unnecessary re-pulls:
+
+```powershell
+.\scripts\pull-models.ps1
+```
+
+## Context Mesh
+
+Context Mesh is the visual debugger for CodeMesh session intelligence. For the selected chat it exposes four read-only views:
+
+- **Graph** — relationships between the session, Router, memories, summary, recent messages, context package, specialists, and SQLite.
+- **Context** — the latest bounded package assembled for the specialist.
+- **Timeline** — how messages, memory updates, decisions, goals, and summaries evolved.
+- **Storage** — a safe view of the current session's SQLite-backed records and relationships.
+
+It displays application-visible context and operational metadata only; it does not expose hidden model reasoning.
 
 ## Testing
 
-Run the reproducible fast suite from the repository root:
+Run the standard local checks from the repository root:
 
 ```powershell
 .\scripts\test.ps1
 ```
 
-This runs backend lint/tests and frontend typecheck/build/tests. Live Ollama tests are separate:
+Live Ollama tests are intentionally separate from the fast suite:
 
 ```powershell
 Set-Location backend
 uv run pytest -m live -q
 ```
 
-See [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) and [`docs/DEMO.md`](docs/DEMO.md) for the verified checks and classroom prompts.
+See [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) for test coverage and [`docs/DEMO.md`](docs/DEMO.md) for demonstration prompts.
 
-## Context Mesh
-
-Open the mesh button in the sidebar utility area for the selected session. The visualizer presents a bounded semantic graph, the latest assembled context package, a chronological timeline, and read-only SQLite table mappings. It is session-scoped and intended for understanding how context was assembled, not for exposing private model reasoning.
-
-## Project structure
+## Project layout
 
 ```text
-backend/       FastAPI, Ollama gateway, orchestration, SQLite, tests
-frontend/      React, TypeScript, Vite chat application
-evaluation/    Routing, latency, and context evaluation scripts
-scripts/       Windows bootstrap, diagnostics, model setup, launch, and tests
-docs/          Architecture, decisions, demos, status, and test evidence
+CodeMesh/
+├── backend/       FastAPI, routing, context, persistence, tests
+├── frontend/      React and TypeScript chat application
+├── evaluation/    Routing, latency, and context evaluations
+├── scripts/       Bootstrap, diagnostics, models, launch, tests
+├── docs/          Architecture, demo, security, status, test evidence
+├── .env.example
+├── .gitignore
+└── README.md
 ```
 
 ## Privacy and local operation
 
-Chat history, context, and model requests stay on the local machine by default. SQLite databases, environments, logs, browser artifacts, and Ollama model files are intentionally excluded from Git. No authentication, billing, cloud deployment, or external model API is included in this local v1.
+Model requests and chat data remain local by default. Real SQLite databases, `.env` files, virtual environments, `node_modules`, logs, generated reports, and Ollama model artifacts are excluded from the repository. The current local release does not require authentication, billing, cloud infrastructure, or an external model API.
 
-## Future scope
+## Documentation
 
-Docker/AWS seams are documented in [`docs/AWS_FUTURE.md`](docs/AWS_FUTURE.md), but cloud infrastructure is intentionally not implemented in this release.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and context flow
+- [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) — verification matrix
+- [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md) — public security review notes
+- [`docs/DEMO.md`](docs/DEMO.md) — demonstration prompts
+- [`docs/AWS_FUTURE.md`](docs/AWS_FUTURE.md) — future deployment mapping
 
-## Attribution and license
+## Authors
 
-CodeMesh is a student project by Mayank Lohani, Om Jha, and Nihar Bendke. It is released under the MIT License; see [`LICENSE`](LICENSE).
+CodeMesh is a student project by Mayank Lohani.
+
+## License
+
+Released under the [MIT License](LICENSE).
